@@ -8,9 +8,12 @@ const PackageJson = struct {
 };
 
 pub fn readPackageJson(allocator: std.mem.Allocator, path: []const u8) !std.json.Parsed(std.json.Value) {
-    const buffer = try allocator.alloc(u8, 512);
-    defer allocator.free(buffer);
-    const data = try std.fs.cwd().readFile(path, buffer);
+    const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
+    defer file.close();
 
-    return std.json.parseFromSlice(std.json.Value, allocator, data, .{});
+    const size = try file.getEndPos();
+    const buffer = try allocator.alloc(u8, size);
+    _ = try file.readAll(buffer);
+
+    return std.json.parseFromSlice(std.json.Value, allocator, buffer, .{});
 }
