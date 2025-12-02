@@ -15,5 +15,7 @@ pub fn main() !void {
     var package = try dependencygraph.Package.init(allocator, "package-lock.json");
     defer package.deinit();
 
+    try stdout.print("Dependencies count for {s}: {d}\n", .{ package.name, package.packages.count() });
+
     try stdout.flush(); // Don't forget to flush!
 }
