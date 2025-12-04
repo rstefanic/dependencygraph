@@ -100,31 +100,26 @@ pub const Package = struct {
             dep.has_install_script = if (dep_obj.get("has_install_script")) |has_install_script| has_install_script.bool else null;
             dep.has_shrinkwrap = if (dep_obj.get("has_shrinkwrap")) |has_shrinkwrap| has_shrinkwrap.bool else null;
 
-            const dep_dependencies_obj = dep_obj.get("dependencies");
-            if (dep_dependencies_obj) |dep_dep_obj| {
-                assert(dep_dep_obj == .object);
-                var dep_it = dep_dep_obj.object.iterator();
-
-                // TODO: Improve dynamic JSON value deserialization to string here and in the loop below.
-                while (dep_it.next()) |dep_dep| {
-                    try dep.dependencies.put(dep_dep.key_ptr.*, dep_dep.value_ptr.*.string);
-                }
-            }
-
-            const opt_dep_dependencies_obj = dep_obj.get("dependencies");
-            if (opt_dep_dependencies_obj) |opt_dep_dep_obj| {
-                assert(opt_dep_dep_obj == .object);
-                var opt_dep_it = opt_dep_dep_obj.object.iterator();
-
-                while (opt_dep_it.next()) |opt_dep_dep| {
-                    try dep.dependencies.put(opt_dep_dep.key_ptr.*, opt_dep_dep.value_ptr.*.string);
-                }
-            }
+            try fillDependenciesHashmap(&dep.dependencies, dep_obj.get("dependencies"));
+            try fillDependenciesHashmap(&dep.optional_dependencies, dep_obj.get("optionalDependencies"));
 
             try packages.put(pkg_name, dep);
         }
 
         return .{ .allocator = allocator, .name = name, .version = version, .lockfileVersion = lockfileVersion, .requires = requires, .packages = packages };
+    }
+
+    fn fillDependenciesHashmap(hashmap: *std.StringHashMap([]const u8), maybe_json_obj: ?std.json.Value) !void {
+        if (maybe_json_obj) |json_obj| {
+            assert(json_obj == .object);
+            var it = json_obj.object.iterator();
+
+            while (it.next()) |entity| {
+                const name = entity.key_ptr.*;
+                const version = entity.value_ptr.*.string; // TODO: Improve deserialization here
+                try hashmap.put(name, version);
+            }
+        }
     }
 
     pub fn deinit(self: *Package) void {
