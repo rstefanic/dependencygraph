@@ -2,7 +2,6 @@ const std = @import("std");
 const assert = std.debug.assert;
 
 const Dependency = struct {
-    allocator: std.mem.Allocator,
     version: ?[]const u8 = null,
     resolved: ?[]const u8 = null,
     integrity: ?[]const u8 = null,
@@ -20,38 +19,27 @@ const Dependency = struct {
     // license: ?[]const u8 = null,
     // engines: ?[]const u8 = null,
 
-    dependencies: std.StringHashMap([]const u8),
-    dev_dependencies: std.StringHashMap([]const u8),
-    peer_dependencies: std.StringHashMap([]const u8),
-    optional_dependencies: std.StringHashMap([]const u8),
-
-    pub fn init(allocator: std.mem.Allocator) !Dependency {
-        var dependencies = std.StringHashMap([]const u8).init(allocator);
-        errdefer dependencies.deinit();
-
-        var dev_dependencies = std.StringHashMap([]const u8).init(allocator);
-        errdefer dev_dependencies.deinit();
-
-        var peer_dependencies = std.StringHashMap([]const u8).init(allocator);
-        errdefer peer_dependencies.deinit();
-
-        var optional_dependencies = std.StringHashMap([]const u8).init(allocator);
-        errdefer optional_dependencies.deinit();
-
-        return .{
-            .allocator = allocator,
-            .dependencies = dependencies,
-            .dev_dependencies = dev_dependencies,
-            .peer_dependencies = peer_dependencies,
-            .optional_dependencies = optional_dependencies,
-        };
-    }
+    dependencies: ?std.StringHashMap([]const u8) = null,
+    dev_dependencies: ?std.StringHashMap([]const u8) = null,
+    peer_dependencies: ?std.StringHashMap([]const u8) = null,
+    optional_dependencies: ?std.StringHashMap([]const u8) = null,
 
     pub fn deinit(self: *Dependency) void {
-        self.dependencies.deinit();
-        self.dev_dependencies.deinit();
-        self.peer_dependencies.deinit();
-        self.optional_dependencies.deinit();
+        if (self.dependencies) |*dependencies| {
+            dependencies.deinit();
+        }
+
+        if (self.dev_dependencies) |*dev_dependencies| {
+            dev_dependencies.deinit();
+        }
+
+        if (self.peer_dependencies) |*peer_dependencies| {
+            peer_dependencies.deinit();
+        }
+
+        if (self.optional_dependencies) |*optional_dependencies| {
+            optional_dependencies.deinit();
+        }
     }
 };
 
@@ -97,27 +85,28 @@ pub const Package = struct {
         while (packages_it.next()) |pkg| {
             const pkg_key = pkg.key_ptr.*;
             const pkg_name = if (std.mem.eql(u8, pkg_key, "")) "root" else pkg_key;
-            var dep = try Dependency.init(allocator);
 
             assert(pkg.value_ptr.* == .object);
             const dep_obj = pkg.value_ptr.*.object;
 
-            dep.version = if (dep_obj.get("version")) |dep_version| dep_version.string else null;
-            dep.resolved = if (dep_obj.get("resolved")) |resolved| resolved.string else null;
-            dep.integrity = if (dep_obj.get("integrity")) |integrity| integrity.string else null;
-            dep.link = if (dep_obj.get("link")) |link| link.bool else null;
-            dep.dev = if (dep_obj.get("dev")) |dev| dev.bool else null;
-            dep.optional = if (dep_obj.get("optional")) |optional| optional.bool else null;
-            dep.dev_optional = if (dep_obj.get("dev_optional")) |dev_optional| dev_optional.bool else null;
-            dep.in_bundle = if (dep_obj.get("in_bundle")) |in_bundle| in_bundle.bool else null;
-            dep.has_install_script = if (dep_obj.get("has_install_script")) |has_install_script| has_install_script.bool else null;
-            dep.has_shrinkwrap = if (dep_obj.get("has_shrinkwrap")) |has_shrinkwrap| has_shrinkwrap.bool else null;
-            dep.license = if (dep_obj.get("license")) |license| license.string else null;
+            var dep = Dependency{
+                .version = if (dep_obj.get("version")) |dep_version| dep_version.string else null,
+                .resolved = if (dep_obj.get("resolved")) |resolved| resolved.string else null,
+                .integrity = if (dep_obj.get("integrity")) |integrity| integrity.string else null,
+                .link = if (dep_obj.get("link")) |link| link.bool else null,
+                .dev = if (dep_obj.get("dev")) |dev| dev.bool else null,
+                .optional = if (dep_obj.get("optional")) |optional| optional.bool else null,
+                .dev_optional = if (dep_obj.get("dev_optional")) |dev_optional| dev_optional.bool else null,
+                .in_bundle = if (dep_obj.get("in_bundle")) |in_bundle| in_bundle.bool else null,
+                .has_install_script = if (dep_obj.get("has_install_script")) |has_install_script| has_install_script.bool else null,
+                .has_shrinkwrap = if (dep_obj.get("has_shrinkwrap")) |has_shrinkwrap| has_shrinkwrap.bool else null,
+                .license = if (dep_obj.get("license")) |license| license.string else null,
+            };
 
-            try fillDependenciesHashmap(&dep.dependencies, dep_obj.get("dependencies"));
-            try fillDependenciesHashmap(&dep.dev_dependencies, dep_obj.get("devDependencies"));
-            try fillDependenciesHashmap(&dep.peer_dependencies, dep_obj.get("peerDependencies"));
-            try fillDependenciesHashmap(&dep.optional_dependencies, dep_obj.get("optionalDependencies"));
+            try addHashmapIfExists(allocator, &dep.dependencies, dep_obj.get("dependencies"));
+            try addHashmapIfExists(allocator, &dep.dev_dependencies, dep_obj.get("devDependencies"));
+            try addHashmapIfExists(allocator, &dep.peer_dependencies, dep_obj.get("peerDependencies"));
+            try addHashmapIfExists(allocator, &dep.optional_dependencies, dep_obj.get("optionalDependencies"));
 
             try packages.put(pkg_name, dep);
         }
@@ -125,15 +114,21 @@ pub const Package = struct {
         return .{ .allocator = allocator, .name = name, .version = version, .lockfileVersion = lockfileVersion, .requires = requires, .packages = packages };
     }
 
-    fn fillDependenciesHashmap(hashmap: *std.StringHashMap([]const u8), maybe_json_obj: ?std.json.Value) !void {
+    /// If the JSON object passed in exists, then a StringHashMap will be
+    /// allocated at the location `hashmap` location given and filled with
+    /// the value from the JSON object.
+    fn addHashmapIfExists(allocator: std.mem.Allocator, hashmap: *?std.StringHashMap([]const u8), maybe_json_obj: ?std.json.Value) !void {
         if (maybe_json_obj) |json_obj| {
             assert(json_obj == .object);
-            var it = json_obj.object.iterator();
 
+            hashmap.* = std.StringHashMap([]const u8).init(allocator);
+            errdefer hashmap.*.?.deinit();
+
+            var it = json_obj.object.iterator();
             while (it.next()) |entity| {
                 const name = entity.key_ptr.*;
                 const version = entity.value_ptr.*.string; // TODO: Improve deserialization here
-                try hashmap.put(name, version);
+                try hashmap.*.?.put(name, version);
             }
         }
     }
