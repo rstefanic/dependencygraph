@@ -20,11 +20,19 @@ const Dependency = struct {
     // engines: ?[]const u8 = null,
 
     dependencies: std.StringHashMap([]const u8),
+    dev_dependencies: std.StringHashMap([]const u8),
+    peer_dependencies: std.StringHashMap([]const u8),
     optional_dependencies: std.StringHashMap([]const u8),
 
     pub fn init(allocator: std.mem.Allocator) !Dependency {
         var dependencies = std.StringHashMap([]const u8).init(allocator);
         errdefer dependencies.deinit();
+
+        var dev_dependencies = std.StringHashMap([]const u8).init(allocator);
+        errdefer dev_dependencies.deinit();
+
+        var peer_dependencies = std.StringHashMap([]const u8).init(allocator);
+        errdefer peer_dependencies.deinit();
 
         var optional_dependencies = std.StringHashMap([]const u8).init(allocator);
         errdefer optional_dependencies.deinit();
@@ -32,12 +40,16 @@ const Dependency = struct {
         return .{
             .allocator = allocator,
             .dependencies = dependencies,
+            .dev_dependencies = dev_dependencies,
+            .peer_dependencies = peer_dependencies,
             .optional_dependencies = optional_dependencies,
         };
     }
 
     pub fn deinit(self: *Dependency) void {
         self.dependencies.deinit();
+        self.dev_dependencies.deinit();
+        self.peer_dependencies.deinit();
         self.optional_dependencies.deinit();
     }
 };
@@ -101,6 +113,8 @@ pub const Package = struct {
             dep.has_shrinkwrap = if (dep_obj.get("has_shrinkwrap")) |has_shrinkwrap| has_shrinkwrap.bool else null;
 
             try fillDependenciesHashmap(&dep.dependencies, dep_obj.get("dependencies"));
+            try fillDependenciesHashmap(&dep.dev_dependencies, dep_obj.get("devDependencies"));
+            try fillDependenciesHashmap(&dep.peer_dependencies, dep_obj.get("peerDependencies"));
             try fillDependenciesHashmap(&dep.optional_dependencies, dep_obj.get("optionalDependencies"));
 
             try packages.put(pkg_name, dep);
