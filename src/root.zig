@@ -13,6 +13,7 @@ const Dependency = struct {
     in_bundle: ?bool = null,
     has_install_script: ?bool = null,
     has_shrinkwrap: ?bool = null,
+    license: ?[]const u8 = null,
 
     // TODO: Add these in (they're not strings)
     // bin: ?[]const u8 = null,
@@ -111,6 +112,7 @@ pub const Package = struct {
             dep.in_bundle = if (dep_obj.get("in_bundle")) |in_bundle| in_bundle.bool else null;
             dep.has_install_script = if (dep_obj.get("has_install_script")) |has_install_script| has_install_script.bool else null;
             dep.has_shrinkwrap = if (dep_obj.get("has_shrinkwrap")) |has_shrinkwrap| has_shrinkwrap.bool else null;
+            dep.license = if (dep_obj.get("license")) |license| license.string else null;
 
             try fillDependenciesHashmap(&dep.dependencies, dep_obj.get("dependencies"));
             try fillDependenciesHashmap(&dep.dev_dependencies, dep_obj.get("devDependencies"));
