@@ -14,10 +14,8 @@ const Dependency = struct {
     has_shrinkwrap: ?bool = null,
     license: ?[]const u8 = null,
 
-    // TODO: Add these in (they're not strings)
-    // bin: ?[]const u8 = null,
-    // license: ?[]const u8 = null,
-    // engines: ?[]const u8 = null,
+    bin: ?std.StringHashMap([]const u8) = null,
+    engines: ?std.StringHashMap([]const u8) = null,
 
     dependencies: ?std.StringHashMap([]const u8) = null,
     dev_dependencies: ?std.StringHashMap([]const u8) = null,
@@ -25,6 +23,14 @@ const Dependency = struct {
     optional_dependencies: ?std.StringHashMap([]const u8) = null,
 
     pub fn deinit(self: *Dependency) void {
+        if (self.bin) |*bin| {
+            bin.deinit();
+        }
+
+        if (self.engines) |*engines| {
+            engines.deinit();
+        }
+
         if (self.dependencies) |*dependencies| {
             dependencies.deinit();
         }
@@ -102,6 +108,9 @@ pub const Package = struct {
                 .has_shrinkwrap = if (dep_obj.get("has_shrinkwrap")) |has_shrinkwrap| has_shrinkwrap.bool else null,
                 .license = if (dep_obj.get("license")) |license| license.string else null,
             };
+
+            try addHashmapIfExists(allocator, &dep.bin, dep_obj.get("bin"));
+            try addHashmapIfExists(allocator, &dep.engines, dep_obj.get("engines"));
 
             try addHashmapIfExists(allocator, &dep.dependencies, dep_obj.get("dependencies"));
             try addHashmapIfExists(allocator, &dep.dev_dependencies, dep_obj.get("devDependencies"));
