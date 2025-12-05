@@ -124,8 +124,8 @@ pub const Package = struct {
     }
 
     /// If the JSON object passed in exists, then a StringHashMap will be
-    /// allocated at the location `hashmap` location given and filled with
-    /// the value from the JSON object.
+    /// allocated at the `hashmap` location given and filled with the value
+    /// from the JSON object.
     fn addHashmapIfExists(allocator: std.mem.Allocator, hashmap: *?std.StringHashMap([]const u8), maybe_json_obj: ?std.json.Value) !void {
         if (maybe_json_obj) |json_obj| {
             assert(json_obj == .object);
