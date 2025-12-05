@@ -61,6 +61,8 @@
         //    // actually used.
         //    .lazy = false,
         //},
+
+        .raylib = .{ .path = "./libs/raylib", },
     },
     // Specifies the set of files and directories that are included in this package.
     // Only files and directories listed here are included in the `hash` that
