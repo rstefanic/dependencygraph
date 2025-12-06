@@ -83,12 +83,17 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    const raylib = b.dependency("raylib", .{
+    const raylib_dep = b.dependency("raylib", .{
         .target = target,
         .optimize = optimize,
     });
 
-    exe.linkLibrary(raylib.artifact("raylib"));
+    const raylib = raylib_dep.artifact("raylib");
+    const raygui_dep = b.dependency("raygui", .{});
+    const raylib_build = @import("raylib");
+    raylib_build.addRaygui(b, raylib, raygui_dep, .{});
+    raylib.addIncludePath(raylib_dep.path("src"));
+    exe.linkLibrary(raylib);
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default

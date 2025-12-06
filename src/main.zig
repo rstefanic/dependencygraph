@@ -2,6 +2,11 @@ const std = @import("std");
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 
+const raylib = @cImport({
+    @cInclude("raylib.h");
+    @cInclude("raygui.h");
+});
+
 const dependencygraph = @import("dependencygraph");
 
 pub fn main() !void {
@@ -15,25 +20,37 @@ pub fn main() !void {
     var package = try dependencygraph.Package.init(allocator, "package-lock.json");
     defer package.deinit();
 
-    if (package.packages.get("root")) |root| {
-        if (root.dependencies) |dependencies| {
-            var dep_it = dependencies.iterator();
-            try stdout.print("Dependencies\n", .{});
-            while (dep_it.next()) |pkg| {
-                const name = pkg.key_ptr.*;
-                try stdout.print("\t{s}\n", .{name});
+    raylib.InitWindow(800, 450, "Dependency Graph");
+    raylib.SetTargetFPS(60);
+
+
+    while (!raylib.WindowShouldClose()) {
+        raylib.BeginDrawing();
+        raylib.ClearBackground(raylib.RAYWHITE);
+
+        const x: c_int = 200;
+        var y: c_int = 200;
+
+        raylib.DrawText("Dependencies", x, y, 24, raylib.LIGHTGRAY);
+        y += 25;
+
+        if (package.packages.get("root")) |root| {
+            if (root.dependencies) |dependencies| {
+                var dep_it = dependencies.iterator();
+                while (dep_it.next()) |pkg| {
+                    const name = pkg.key_ptr.*;
+                    const c_str = try allocator.dupeZ(u8, name);
+                    defer allocator.free(c_str);
+                    raylib.DrawText(c_str.ptr, x, y, 18, raylib.LIGHTGRAY);
+                    y += 20;
+                }
             }
         }
 
-        if (root.dev_dependencies) |dev_dependencies| {
-            var dev_it = dev_dependencies.iterator();
-            try stdout.print("Dev Dependencies\n", .{});
-            while (dev_it.next()) |pkg| {
-                const name = pkg.key_ptr.*;
-                try stdout.print("\t{s}\n", .{name});
-            }
-        }
+        raylib.EndDrawing();
     }
+
+    raylib.CloseWindow();
 
     try stdout.print("Dependencies count for {s}: {d}\n", .{ package.name, package.packages.count() });
     try stdout.flush(); // Don't forget to flush!
