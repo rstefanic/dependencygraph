@@ -39,13 +39,14 @@ pub fn main() !void {
         raylib.BeginDrawing();
         raylib.ClearBackground(raylib.RAYWHITE);
 
+        raylib.DrawText("Dependencies", 20, 14, 24, raylib.BLACK);
+
         _ = raylib.GuiScrollPanel(panel_rec, null, panel_content_rec, panel_scroll_ptr, panel_view_ptr);
 
-        const x: c_int = 200;
-        var y: c_int = 200;
+        raylib.BeginScissorMode(@as(c_int, @intFromFloat(panel_view.x)), @as(c_int, @intFromFloat(panel_view.y)), @as(c_int, @intFromFloat(panel_view.width)), @as(c_int, @intFromFloat(panel_view.height)));
 
-        raylib.DrawText("Dependencies", x, y, 24, raylib.LIGHTGRAY);
-        y += 25;
+        const x: f32 = panel_rec.x + 20;
+        var y: f32 = panel_rec.y + panel_scroll.y;
 
         if (package.packages.get("root")) |root| {
             if (root.dependencies) |dependencies| {
@@ -54,11 +55,13 @@ pub fn main() !void {
                     const name = pkg.key_ptr.*;
                     const c_str = try allocator.dupeZ(u8, name);
                     defer allocator.free(c_str);
-                    raylib.DrawText(c_str.ptr, x, y, 18, raylib.LIGHTGRAY);
+                    _ = raylib.GuiLabel(raylib.Rectangle{ .x = x, .y = y, .width = panel_content_rec.width, .height = 24 }, c_str);
                     y += 20;
                 }
             }
         }
+
+        raylib.EndScissorMode();
 
         raylib.EndDrawing();
     }
