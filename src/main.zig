@@ -20,13 +20,26 @@ pub fn main() !void {
     var package = try dependencygraph.Package.init(allocator, "package-lock.json");
     defer package.deinit();
 
+    const window_w = 800;
+    const window_h = 500;
+
     raylib.InitWindow(800, 450, "Dependency Graph");
     raylib.SetTargetFPS(60);
 
+    const panel_rec = raylib.Rectangle{ .x = 20, .y = 40, .width = window_w - 40, .height = window_h - 100 };
+    const panel_content_rec = raylib.Rectangle{ .x = 0, .y = 0, .width = window_w - 60, .height = window_h + 500 };
+
+    var panel_scroll = raylib.Vector2{ .x = 0, .y = 0 };
+    const panel_scroll_ptr: [*c]raylib.Vector2 = @ptrCast(&panel_scroll);
+
+    var panel_view = raylib.Rectangle{};
+    const panel_view_ptr: [*c]raylib.Rectangle = @ptrCast(&panel_view);
 
     while (!raylib.WindowShouldClose()) {
         raylib.BeginDrawing();
         raylib.ClearBackground(raylib.RAYWHITE);
+
+        _ = raylib.GuiScrollPanel(panel_rec, null, panel_content_rec, panel_scroll_ptr, panel_view_ptr);
 
         const x: c_int = 200;
         var y: c_int = 200;
