@@ -57,14 +57,15 @@ pub const Package = struct {
     requires: bool,
     packages: std.StringHashMap(Dependency),
 
-    pub fn init(allocator: std.mem.Allocator, path: []const u8) !Package {
-        const file = try std.fs.cwd().openFile(path, .{ .mode = .read_only });
-        defer file.close();
+    pub fn init(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !Package {
+        const file = try std.Io.Dir.cwd().openFile(io, path, .{ .mode = .read_only });
+        defer file.close(io);
 
-        const size = try file.getEndPos();
+        const stat = try file.stat(io);
+        const size = stat.size;
         const buffer = try allocator.alloc(u8, size);
 
-        _ = try file.readAll(buffer);
+        _ = try file.readPositionalAll(io, buffer, 0);
 
         // Grab the base object
         const json = try std.json.parseFromSlice(std.json.Value, allocator, buffer, .{});
@@ -128,7 +129,11 @@ pub const Package = struct {
     /// from the JSON object.
     fn addHashmapIfExists(allocator: std.mem.Allocator, hashmap: *?std.StringHashMap([]const u8), maybe_json_obj: ?std.json.Value) !void {
         if (maybe_json_obj) |json_obj| {
-            assert(json_obj == .object);
+            // TODO: Some cases, such as "engine", may not always be an object and it could be an array.
+            if (json_obj != .object) {
+                std.debug.print("{} was not an object\n", .{json_obj});
+                return;
+            }
 
             hashmap.* = std.StringHashMap([]const u8).init(allocator);
             errdefer hashmap.*.?.deinit();

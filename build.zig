@@ -44,7 +44,7 @@ pub fn build(b: *std.Build) void {
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
     // to the module defined above, it's sometimes preferable to split business
-    // business logic and the CLI into two separate modules.
+    // logic and the CLI into two separate modules.
     //
     // If your goal is to create a Zig library for others to use, consider if
     // it might benefit from also exposing a CLI tool. A parser library for a
@@ -83,17 +83,8 @@ pub fn build(b: *std.Build) void {
         }),
     });
 
-    const raylib_dep = b.dependency("raylib", .{
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const raylib = raylib_dep.artifact("raylib");
-    const raygui_dep = b.dependency("raygui", .{});
-    const raylib_build = @import("raylib");
-    raylib_build.addRaygui(b, raylib, raygui_dep, .{});
-    raylib.addIncludePath(raylib_dep.path("src"));
-    exe.linkLibrary(raylib);
+    const dvui_dep = b.dependency("dvui", .{ .target = target, .optimize = optimize, .backend = .sdl3 });
+    exe.root_module.addImport("dvui", dvui_dep.module("dvui_sdl3"));
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default

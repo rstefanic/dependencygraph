@@ -14,7 +14,7 @@
       overlays = [
         (final: prev: {
           zigpkgs = inputs.zig.packages.${prev.system};
-          zig = inputs.zig.packages.${prev.system}."0.15.1";
+          zig = inputs.zig.packages.${prev.system}."0.16.0";
         })
       ];
     in flake-utils.lib.eachDefaultSystem(system:
@@ -23,13 +23,16 @@
       in
       {
         devShells.default = pkgs.mkShell {
+          buildInputs = [
+            pkgs.sdl3
+          ];
+
           nativeBuildInputs = [
-              pkgs.lldb
-              pkgs.zig
-              pkgs.zls
+            pkgs.lldb
+            pkgs.zig
+            pkgs.zls
           ];
         };
-      }
+    }
   );
-
 }
