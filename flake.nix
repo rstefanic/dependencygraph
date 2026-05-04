@@ -24,7 +24,9 @@
       {
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = [
+              pkgs.lldb
               pkgs.zig
+              pkgs.zls
           ];
         };
       }
