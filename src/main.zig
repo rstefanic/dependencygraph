@@ -48,6 +48,8 @@ pub fn appDeinit() void {
     arena_allocator.deinit();
 }
 
+var selected: ?[]const u8 = null; // temp placement for selecting a package
+
 pub fn appFrame() !dvui.App.Result {
     var scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both, .style = .window });
     defer scroll.deinit();
@@ -59,7 +61,49 @@ pub fn appFrame() !dvui.App.Result {
 
             while (dep_it.next()) |pkg| {
                 const name = pkg.key_ptr.*;
-                _ = dvui.button(@src(), name, .{}, .{ .expand = .horizontal, .id_extra = i });
+
+                // Set this as the selected package if clicked.
+                const clicked = dvui.button(@src(), name, .{}, .{ .expand = .horizontal, .id_extra = i });
+                if (clicked) {
+                    if (selected) |sel| {
+                        if (std.mem.eql(u8, name, sel)) {
+                            // Toggle it off it was the selected package previously.
+                            selected = null;
+                        } else {
+                            selected = name;
+                        }
+                    } else {
+                        selected = name;
+                    }
+                }
+
+                if (selected) |sel| {
+                    if (std.mem.eql(u8, name, sel)) {
+                        // Show a box with its dependencies in it.
+                        const hash = std.hash.Adler32.hash(name);
+                        const box = dvui.box(@src(), .{}, .{ .expand = .horizontal, .id_extra = hash });
+                        defer box.deinit();
+
+                        // Find the package and list its dependencies.
+                        const allocator = arena_allocator.allocator();
+                        const node_modules_name = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", name });
+                        if (app.package.packages.get(node_modules_name)) |package| {
+                            if (package.dependencies) |package_dependency| {
+                                var pkg_dep_it = package_dependency.iterator();
+                                while (pkg_dep_it.next()) |pkg_dep| {
+                                    const pkg_dep_name = pkg_dep.key_ptr.*;
+                                    const pkg_dep_value = pkg_dep.value_ptr.*;
+                                    const unique_name = try std.mem.concat(allocator, u8, &[_][]const u8{ pkg_dep_name, pkg_dep_value });
+                                    const pkg_dep_hash = std.hash.Adler32.hash(unique_name);
+                                    dvui.label(@src(), "{s} -- {s}", .{ pkg_dep_name, pkg_dep_value }, .{ .expand = .horizontal, .id_extra = pkg_dep_hash });
+                                }
+                            } else {
+                                dvui.label(@src(), "This package has no dependencies.", .{}, .{ .expand = .horizontal });
+                            }
+                        }
+                    }
+                }
+
                 i += 1;
             }
         }
