@@ -57,6 +57,9 @@ pub fn appFrame() !dvui.App.Result {
 
     if (app.package.packages.get("root")) |root| {
         if (root.dependencies) |dependencies| {
+            const padding_box = dvui.box(@src(), .{}, .{ .expand = .horizontal, .id_extra = 0x0123456789, .padding = dvui.Rect{ .x = 20, .y = 10, .w = 20, .h = 10 } });
+            defer padding_box.deinit();
+
             var dep_it = dependencies.iterator();
             var i: u64 = 0;
 
