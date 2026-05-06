@@ -97,8 +97,16 @@ pub fn appFrame() !dvui.App.Result {
                                 while (pkg_dep_it.next()) |pkg_dep| {
                                     const pkg_dep_name = pkg_dep.key_ptr.*;
                                     const pkg_dep_value = pkg_dep.value_ptr.*;
-                                    const unique_name = try std.mem.concat(allocator, u8, &[_][]const u8{ pkg_dep_name, pkg_dep_value });
+
+                                    // TODO: This is not really a reliable way to produce a unique
+                                    // hash. Adler32 only takes the first 16 characters when
+                                    // generating a hash, so long package names collide. The quick
+                                    // fix here is to instead start with the semver number here
+                                    // which is less likely to collide with the package name right
+                                    // after it.
+                                    const unique_name = try std.mem.concat(allocator, u8, &[_][]const u8{ pkg_dep_value, pkg_dep_name });
                                     const pkg_dep_hash = std.hash.Adler32.hash(unique_name);
+
                                     dvui.label(@src(), "{s} -- {s}", .{ pkg_dep_name, pkg_dep_value }, .{ .expand = .horizontal, .id_extra = pkg_dep_hash });
                                 }
                             } else {
