@@ -7,12 +7,13 @@ const Allocator = std.mem.Allocator;
 const dependencygraph = @import("dependencygraph");
 
 pub const dvui_app: dvui.App = .{
-    .config = .{ .options = .{
-        .size = .{ .w = 800.0, .h = 600.0 },
-        .min_size = .{ .w = 800.0, .h = 600.0 },
-        .max_size = .{ .w = 800.0, .h = 600.0 },
-        .title = "Dependency Graph",
-    } },
+    .config = .{
+        .options = .{
+            .size = .{ .w = 800.0, .h = 600.0 },
+            .min_size = .{ .w = 800.0, .h = 600.0 },
+            .title = "Dependency Graph",
+        },
+    },
     .frameFn = appFrame,
     .initFn = appInit,
     .deinitFn = appDeinit,
