@@ -28,20 +28,11 @@ var arena_allocator: std.heap.ArenaAllocator = undefined;
 var orig_content_scale: f32 = 1.0;
 
 pub fn appInit(win: *dvui.Window) !void {
+    const io = dvui.App.main_init.?.io;
     orig_content_scale = win.content_scale;
     arena_allocator = .init(std.heap.page_allocator);
-
-    // Parse the package lock file at the start.
-    const io = dvui.App.main_init.?.io;
-    var stdout_buffer: [1024]u8 = undefined;
-    var stdout_file_writer: std.Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
-    const stdout = &stdout_file_writer.interface;
-
     const allocator = arena_allocator.allocator();
     app.package = try dependencygraph.Package.init(io, allocator, "package-lock.json");
-
-    try stdout.print("Dependencies count for {s}: {d}\n", .{ app.package.name, app.package.packages.count() });
-    try stdout.flush(); // Don't forget to flush!
 }
 
 pub fn appDeinit() void {
@@ -58,9 +49,19 @@ pub fn appFrame() !dvui.App.Result {
             const padding_box = dvui.box(@src(), .{}, .{ .expand = .both, .id_extra = 0x0123456789, .margin = dvui.Rect{ .x = 20, .y = 10, .w = 20, .h = 10 } });
             defer padding_box.deinit();
 
+            {
+                const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
+                defer header_box.deinit();
+                dvui.label(@src(), "{s}", .{app.package.name}, .{ .expand = .horizontal, .font = .theme(.title) });
+            }
+            {
+                const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
+                defer header_box.deinit();
+                dvui.label(@src(), "Dependency count: {d}", .{app.package.packages.count()}, .{ .expand = .horizontal });
+            }
+
             var dep_it = dependencies.iterator();
             var i: u64 = 0;
-
             while (dep_it.next()) |pkg| {
                 const name = pkg.key_ptr.*;
 
