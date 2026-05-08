@@ -76,13 +76,37 @@ pub fn appFrame() !dvui.App.Result {
 
                     // Find the package and list its dependencies.
                     const allocator = arena_allocator.allocator();
-                    const node_modules_name = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", name });
-                    if (app.package.packages.get(node_modules_name)) |package| {
+                    const node_modules_path = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", name });
+                    if (app.package.packages.get(node_modules_path)) |package| {
                         if (package.dependencies) |package_dependency| {
                             var pkg_dep_it = package_dependency.iterator();
                             while (pkg_dep_it.next()) |pkg_dep| {
                                 const pkg_dep_name = pkg_dep.key_ptr.*;
                                 const pkg_dep_value = pkg_dep.value_ptr.*;
+
+                                // See if we can find the actual package's version that's install.
+                                var pkg_dep_actual: ?[]const u8 = undefined;
+                                actual: {
+                                    const pkg_dep_full_name = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", pkg_dep_name });
+                                    const pkg_dep_sub_pkg_full_name = try std.mem.concat(allocator, u8, &[_][]const u8{ node_modules_path, "/", pkg_dep_full_name });
+
+                                    // First check to see if this package exists in this package's node_modules_folder.
+                                    // This could mean that there's another version that's conflicting at the package
+                                    // level and this package has a different version of its dependency.
+                                    if (app.package.packages.get(pkg_dep_sub_pkg_full_name)) |actual| {
+                                        pkg_dep_actual = actual.version;
+                                        break :actual;
+                                    }
+
+                                    // Check the top node_modules folder to see if the dependency is shared.
+                                    if (app.package.packages.get(pkg_dep_full_name)) |actual| {
+                                        pkg_dep_actual = actual.version;
+                                        break :actual;
+                                    }
+
+                                    // Fall back showing something. This means that we couldn't find it and it's probably a bug.
+                                    pkg_dep_actual = "N/A";
+                                }
 
                                 // TODO: This is not really a reliable way to produce a unique
                                 // hash. Adler32 only takes the first 16 characters when
@@ -93,7 +117,15 @@ pub fn appFrame() !dvui.App.Result {
                                 const unique_name = try std.mem.concat(allocator, u8, &[_][]const u8{ pkg_dep_value, pkg_dep_name });
                                 const pkg_dep_hash = std.hash.Adler32.hash(unique_name);
 
-                                dvui.label(@src(), "{s} -- {s}", .{ pkg_dep_name, pkg_dep_value }, .{ .expand = .horizontal, .id_extra = pkg_dep_hash });
+                                {
+                                    const pkg_dep_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal, .id_extra = pkg_dep_hash });
+                                    defer pkg_dep_box.deinit();
+                                    dvui.label(@src(), "{s}", .{pkg_dep_name}, .{ .expand = .horizontal });
+                                    dvui.label(@src(), "Required: {s}", .{pkg_dep_value}, .{ .expand = .horizontal });
+                                    if (pkg_dep_actual) |actual| {
+                                        dvui.label(@src(), "Actual: {s}", .{actual}, .{ .expand = .horizontal });
+                                    }
+                                }
                             }
                         } else {
                             dvui.label(@src(), "This package has no dependencies.", .{}, .{ .expand = .horizontal });
