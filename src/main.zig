@@ -45,38 +45,37 @@ pub fn appFrame() !dvui.App.Result {
     defer scroll.deinit();
 
     if (app.package.packages.get("root")) |root| {
-        if (root.dependencies) |dependencies| {
-            const padding_box = dvui.box(@src(), .{}, .{ .expand = .both, .id_extra = 0x0123456789, .margin = dvui.Rect{ .x = 20, .y = 10, .w = 20, .h = 10 } });
-            defer padding_box.deinit();
+        const padding_box = dvui.box(@src(), .{}, .{ .expand = .both, .id_extra = 0x0123456789, .margin = dvui.Rect{ .x = 20, .y = 10, .w = 20, .h = 10 } });
+        defer padding_box.deinit();
 
-            {
-                const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
-                defer header_box.deinit();
-                dvui.label(@src(), "{s}", .{app.package.name}, .{ .expand = .horizontal, .font = .theme(.title) });
-            }
-            {
-                const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
-                defer header_box.deinit();
-                dvui.label(@src(), "Dependency count: {d}", .{app.package.packages.count()}, .{ .expand = .horizontal });
-            }
+        {
+            const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
+            defer header_box.deinit();
+            dvui.label(@src(), "{s}", .{app.package.name}, .{ .expand = .horizontal, .font = .theme(.title) });
+        }
+        {
+            const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
+            defer header_box.deinit();
+            dvui.label(@src(), "Dependency count: {d}", .{app.package.packages.count()}, .{ .expand = .horizontal });
+        }
 
-            var dep_it = dependencies.iterator();
+        if (root.dependencies) |packages| {
+            var packages_it = packages.iterator();
             var i: u64 = 0;
-            while (dep_it.next()) |pkg| {
-                const name = pkg.key_ptr.*;
+            while (packages_it.next()) |pkg| {
+                const package_name = pkg.key_ptr.*;
 
                 // Set this as the selected package if clicked.
-                const clicked = dvui.expander(@src(), name, .{}, .{ .expand = .horizontal, .id_extra = i });
+                const clicked = dvui.expander(@src(), package_name, .{}, .{ .expand = .horizontal, .id_extra = i });
                 if (clicked) {
-
-                    // Show a box with its dependencies in it.
-                    const hash = std.hash.Adler32.hash(name);
+                    // Show a box with this package's dependencies in it.
+                    const hash = std.hash.Adler32.hash(package_name);
                     const box = dvui.box(@src(), .{}, .{ .expand = .horizontal, .id_extra = hash, .margin = dvui.Rect{ .x = 20, .y = 0, .w = 0, .h = 0 } });
                     defer box.deinit();
 
                     // Find the package and list its dependencies.
                     const allocator = arena_allocator.allocator();
-                    const node_modules_path = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", name });
+                    const node_modules_path = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", package_name });
                     if (app.package.packages.get(node_modules_path)) |package| {
                         if (package.dependencies) |package_dependency| {
                             var pkg_dep_it = package_dependency.iterator();
