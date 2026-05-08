@@ -13,6 +13,8 @@ pub fn packageTrees(self: *App, root: Dependency) !dvui.App.Result {
     const PackageType = enum {
         dependencies,
         devDependencies,
+        peerDependencies,
+        optionalDependencies,
         const num_tabs = @typeInfo(@This()).@"enum".fields.len;
     };
 
@@ -27,6 +29,8 @@ pub fn packageTrees(self: *App, root: Dependency) !dvui.App.Result {
             return switch (packageType) {
                 .dependencies => "Dependencies",
                 .devDependencies => "Dev Dependencies",
+                .peerDependencies => "Peer Dependencies",
+                .optionalDependencies => "Optional Dependencies",
             };
         }
     };
@@ -51,11 +55,29 @@ pub fn packageTrees(self: *App, root: Dependency) !dvui.App.Result {
         .dependencies => {
             if (root.dependencies) |packages| {
                 return self.packageDependencies(packages);
+            } else {
+                dvui.label(@src(), "This package has no Dependencies.", .{}, .{});
             }
         },
         .devDependencies => {
             if (root.dev_dependencies) |packages| {
                 return self.packageDependencies(packages);
+            } else {
+                dvui.label(@src(), "This package has no Developer Dependencies.", .{}, .{});
+            }
+        },
+        .peerDependencies => {
+            if (root.peer_dependencies) |packages| {
+                return self.packageDependencies(packages);
+            } else {
+                dvui.label(@src(), "This package has no Peer Dependencies.", .{}, .{});
+            }
+        },
+        .optionalDependencies => {
+            if (root.optional_dependencies) |packages| {
+                return self.packageDependencies(packages);
+            } else {
+                dvui.label(@src(), "This package has no Optional Dependencies.", .{}, .{});
             }
         },
     }
