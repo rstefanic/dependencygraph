@@ -1,7 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-const Dependency = struct {
+pub const Dependency = struct {
     version: ?[]const u8 = null,
     resolved: ?[]const u8 = null,
     integrity: ?[]const u8 = null,
