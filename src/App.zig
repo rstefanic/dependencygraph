@@ -2,14 +2,14 @@ const std = @import("std");
 const dvui = @import("dvui");
 
 const dependencyGraph = @import("dependencygraph");
-const Dependency = dependencyGraph.Dependency;
+const Package = dependencyGraph.Package;
 
 const App = @This();
 
 lockfile: dependencyGraph.LockFile = undefined,
 arena_allocator: ?std.heap.ArenaAllocator = undefined,
 
-pub fn packageTrees(self: *App, root: Dependency) !dvui.App.Result {
+pub fn packageTrees(self: *App, root: Package) !dvui.App.Result {
     const PackageType = enum {
         dependencies,
         devDependencies,

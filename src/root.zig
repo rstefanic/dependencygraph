@@ -1,7 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-pub const Dependency = struct {
+pub const Package = struct {
     version: ?[]const u8 = null,
     resolved: ?[]const u8 = null,
     integrity: ?[]const u8 = null,
@@ -22,7 +22,7 @@ pub const Dependency = struct {
     peer_dependencies: ?std.StringHashMap([]const u8) = null,
     optional_dependencies: ?std.StringHashMap([]const u8) = null,
 
-    pub fn deinit(self: *Dependency) void {
+    pub fn deinit(self: *Package) void {
         if (self.bin) |*bin| {
             bin.deinit();
         }
@@ -55,7 +55,7 @@ pub const LockFile = struct {
     version: []const u8,
     lockfileVersion: i64,
     requires: bool,
-    packages: std.StringHashMap(Dependency),
+    packages: std.StringHashMap(Package),
 
     pub fn init(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !LockFile {
         const file = try std.Io.Dir.cwd().openFile(io, path, .{ .mode = .read_only });
@@ -86,7 +86,7 @@ pub const LockFile = struct {
         };
 
         var packages_it = packages_obj.object.iterator();
-        var packages = std.StringHashMap(Dependency).init(allocator);
+        var packages = std.StringHashMap(Package).init(allocator);
         errdefer packages.deinit();
 
         while (packages_it.next()) |pkg| {
@@ -96,7 +96,7 @@ pub const LockFile = struct {
             assert(pkg.value_ptr.* == .object);
             const dep_obj = pkg.value_ptr.*.object;
 
-            var dep = Dependency{
+            var dep = Package{
                 .version = if (dep_obj.get("version")) |dep_version| dep_version.string else null,
                 .resolved = if (dep_obj.get("resolved")) |resolved| resolved.string else null,
                 .integrity = if (dep_obj.get("integrity")) |integrity| integrity.string else null,
