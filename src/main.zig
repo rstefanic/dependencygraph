@@ -32,12 +32,12 @@ pub fn appInit(win: *dvui.Window) !void {
     orig_content_scale = win.content_scale;
     arena_allocator = .init(std.heap.page_allocator);
     const allocator = arena_allocator.allocator();
-    app.package = try dependencygraph.Package.init(io, allocator, "package-lock.json");
+    app.lockfile = try dependencygraph.LockFile.init(io, allocator, "package-lock.json");
     app.arena_allocator = arena_allocator;
 }
 
 pub fn appDeinit() void {
-    app.package.deinit();
+    app.lockfile.deinit();
     arena_allocator.deinit();
 }
 
@@ -51,15 +51,15 @@ pub fn appFrame() !dvui.App.Result {
     {
         const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
         defer header_box.deinit();
-        dvui.label(@src(), "{s}", .{app.package.name}, .{ .expand = .horizontal, .font = .theme(.title) });
+        dvui.label(@src(), "{s}", .{app.lockfile.name}, .{ .expand = .horizontal, .font = .theme(.title) });
     }
     {
         const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
         defer header_box.deinit();
-        dvui.label(@src(), "Dependency count: {d}", .{app.package.packages.count()}, .{ .expand = .horizontal });
+        dvui.label(@src(), "Dependency count: {d}", .{app.lockfile.packages.count()}, .{ .expand = .horizontal });
     }
 
-    if (app.package.packages.get("root")) |root| {
+    if (app.lockfile.packages.get("root")) |root| {
         return app.packageTrees(root);
     }
 

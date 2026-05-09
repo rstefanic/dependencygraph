@@ -6,7 +6,7 @@ const Dependency = dependencyGraph.Dependency;
 
 const App = @This();
 
-package: dependencyGraph.Package = undefined,
+lockfile: dependencyGraph.LockFile = undefined,
 arena_allocator: ?std.heap.ArenaAllocator = undefined,
 
 pub fn packageTrees(self: *App, root: Dependency) !dvui.App.Result {
@@ -102,7 +102,7 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
             // Find the package and list its dependencies.
             const allocator = self.arena_allocator.?.allocator();
             const node_modules_path = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", package_name });
-            if (self.package.packages.get(node_modules_path)) |node_modules_package| {
+            if (self.lockfile.packages.get(node_modules_path)) |node_modules_package| {
                 if (node_modules_package.dependencies) |node_modules_dependencies| {
                     var node_module_dependencies_it = node_modules_dependencies.iterator();
                     while (node_module_dependencies_it.next()) |dependency| {
@@ -118,13 +118,13 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                             // First check to see if this package exists in this package's node_modules_folder.
                             // This could mean that there's another version that's conflicting at the package
                             // level and this package has a different version of its dependency.
-                            if (self.package.packages.get(pkg_dep_sub_pkg_full_name)) |actual| {
+                            if (self.lockfile.packages.get(pkg_dep_sub_pkg_full_name)) |actual| {
                                 actual_dependency_version = actual.version;
                                 break :actual;
                             }
 
                             // Check the top node_modules folder to see if the dependency is shared.
-                            if (self.package.packages.get(pkg_dep_full_name)) |actual| {
+                            if (self.lockfile.packages.get(pkg_dep_full_name)) |actual| {
                                 actual_dependency_version = actual.version;
                                 break :actual;
                             }

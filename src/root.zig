@@ -49,7 +49,7 @@ pub const Dependency = struct {
     }
 };
 
-pub const Package = struct {
+pub const LockFile = struct {
     allocator: std.mem.Allocator,
     name: []const u8,
     version: []const u8,
@@ -57,7 +57,7 @@ pub const Package = struct {
     requires: bool,
     packages: std.StringHashMap(Dependency),
 
-    pub fn init(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !Package {
+    pub fn init(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !LockFile {
         const file = try std.Io.Dir.cwd().openFile(io, path, .{ .mode = .read_only });
         defer file.close(io);
 
@@ -147,7 +147,7 @@ pub const Package = struct {
         }
     }
 
-    pub fn deinit(self: *Package) void {
+    pub fn deinit(self: *LockFile) void {
         var it = self.packages.iterator();
         while (it.next()) |pkg| {
             pkg.value_ptr.*.deinit();
