@@ -19,7 +19,7 @@ pub const dvui_app: dvui.App = .{
     .deinitFn = appDeinit,
 };
 
-var app: App = .{};
+var app: App = .{ .selected_package = "root" };
 pub const main = dvui.App.main;
 pub const panic = dvui.App.panic;
 pub const std_options: std.Options = .{ .logFn = dvui.App.logFn };
@@ -59,8 +59,8 @@ pub fn appFrame() !dvui.App.Result {
         dvui.label(@src(), "Dependency count: {d}", .{app.lockfile.packages.count()}, .{ .expand = .horizontal });
     }
 
-    if (app.lockfile.packages.get("root")) |root| {
-        return app.packageTrees(root);
+    if (app.lockfile.packages.get(app.selected_package)) |pkg| {
+        return app.packageTrees(pkg);
     }
 
     return .ok;

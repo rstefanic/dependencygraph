@@ -8,6 +8,7 @@ const App = @This();
 
 lockfile: dependencyGraph.LockFile = undefined,
 arena_allocator: ?std.heap.ArenaAllocator = undefined,
+selected_package: []const u8,
 
 pub fn packageTrees(self: *App, root: Package) !dvui.App.Result {
     const PackageType = enum {
@@ -111,10 +112,9 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
 
                         // See if we can find the actual package's version that's install.
                         var actual_dependency_version: ?[]const u8 = undefined;
+                        const pkg_dep_full_name = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", dependency_name });
+                        const pkg_dep_sub_pkg_full_name = try std.mem.concat(allocator, u8, &[_][]const u8{ node_modules_path, "/", pkg_dep_full_name });
                         actual: {
-                            const pkg_dep_full_name = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", dependency_name });
-                            const pkg_dep_sub_pkg_full_name = try std.mem.concat(allocator, u8, &[_][]const u8{ node_modules_path, "/", pkg_dep_full_name });
-
                             // First check to see if this package exists in this package's node_modules_folder.
                             // This could mean that there's another version that's conflicting at the package
                             // level and this package has a different version of its dependency.
@@ -141,14 +141,17 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                         // after it.
                         const unique_name = try std.mem.concat(allocator, u8, &[_][]const u8{ dependency_value, dependency_name });
                         const pkg_dep_hash = std.hash.Adler32.hash(unique_name);
-
                         {
                             const pkg_dep_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal, .id_extra = pkg_dep_hash });
                             defer pkg_dep_box.deinit();
-                            dvui.label(@src(), "{s}", .{dependency_name}, .{ .expand = .horizontal });
+                            const label_clicked = dvui.labelClick(@src(), "{s}", .{dependency_name}, .{}, .{ .expand = .horizontal });
                             dvui.label(@src(), "Required: {s}", .{dependency_value}, .{ .expand = .horizontal });
                             if (actual_dependency_version) |actual| {
                                 dvui.label(@src(), "Actual: {s}", .{actual}, .{ .expand = .horizontal });
+                            }
+
+                            if (label_clicked) {
+                                self.selected_package = pkg_dep_full_name;
                             }
                         }
                     }
