@@ -9,6 +9,7 @@ const App = @This();
 lockfile: dependencyGraph.LockFile = undefined,
 arena_allocator: ?std.heap.ArenaAllocator = undefined,
 selected_package: []const u8,
+history: std.ArrayList([]const u8) = .empty,
 
 pub fn packageTrees(self: *App, root: Package) !dvui.App.Result {
     const PackageType = enum {
@@ -151,6 +152,7 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                             }
 
                             if (label_clicked) {
+                                try self.history.append(allocator, pkg_dep_full_name);
                                 self.selected_package = pkg_dep_full_name;
                             }
                         }
