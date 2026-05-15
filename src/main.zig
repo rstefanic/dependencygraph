@@ -49,15 +49,6 @@ pub fn appFrame() !dvui.App.Result {
     const padding_box = dvui.box(@src(), .{}, .{ .expand = .both, .id_extra = 0x0123456789, .margin = dvui.Rect{ .x = 20, .y = 10, .w = 20, .h = 10 } });
     defer padding_box.deinit();
 
-    const button_enabled = app.history.items.len > 1;
-    if (button_enabled) {
-        const clicked = dvui.button(@src(), "Back", .{}, .{});
-        if (clicked) {
-            _ = app.history.pop(); // Remove last element
-            app.selected_package = app.history.items[app.history.items.len - 1];
-        }
-    }
-
     {
         const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
         defer header_box.deinit();
@@ -67,6 +58,25 @@ pub fn appFrame() !dvui.App.Result {
         const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
         defer header_box.deinit();
         dvui.label(@src(), "Dependency count: {d}", .{app.lockfile.packages.count()}, .{ .expand = .horizontal });
+    }
+
+    {
+        const nav_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal });
+        defer nav_box.deinit();
+
+        dvui.label(@src(), "{s}", .{app.selected_package}, .{ .font = dvui.Font.theme(.title), .gravity_y = 0.5 });
+
+        _ = dvui.spacer(@src(), .{});
+
+        // Back button if there's history
+        const button_enabled = app.history.items.len > 1;
+        if (button_enabled) {
+            const clicked = dvui.button(@src(), "Back", .{}, .{});
+            if (clicked) {
+                _ = app.history.pop(); // Remove last element
+                app.selected_package = app.history.items[app.history.items.len - 1];
+            }
+        }
     }
 
     if (app.lockfile.packages.get(app.selected_package)) |pkg| {
