@@ -8,6 +8,7 @@ const App = @This();
 
 lockfile: dependencyGraph.LockFile = undefined,
 arena_allocator: ?std.heap.ArenaAllocator = undefined,
+show_search: bool = false,
 selected_package: []const u8,
 history: std.ArrayList([]const u8) = .empty,
 
