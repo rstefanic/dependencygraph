@@ -12,7 +12,9 @@ pub fn frame(app: *App) void {
                 const key = e.evt.key.code;
                 if (!app.show_search and key == .slash) {
                     app.show_search = true;
+                    app.focus_search = true;
                 } else if (app.show_search and key == .escape) {
+                    @memset(&app.search_buf, 0); // reset the search value
                     app.show_search = false;
                 }
             },
@@ -21,11 +23,11 @@ pub fn frame(app: *App) void {
     }
 
     if (app.show_search) {
-        renderSearch();
+        renderSearch(app);
     }
 }
 
-fn renderSearch() void {
+fn renderSearch(app: *App) void {
     var floating_window_rect: dvui.Rect = .cast(dvui.windowRect().insetAll(32));
     var floating_window = dvui.floatingWindow(
         @src(),
@@ -34,5 +36,15 @@ fn renderSearch() void {
     );
     defer floating_window.deinit();
 
-    {}
+    var hbox = dvui.box(@src(), .{}, .{ .expand = .horizontal });
+    defer hbox.deinit();
+    {
+        var search = dvui.textEntry(@src(), .{ .text = .{ .buffer = &app.search_buf }, .placeholder = "Search for a package..." }, .{ .expand = .horizontal });
+        defer search.deinit();
+
+        if (app.focus_search) {
+            app.focus_search = false;
+            dvui.focusWidget(search.wd.id, null, null);
+        }
+    }
 }
