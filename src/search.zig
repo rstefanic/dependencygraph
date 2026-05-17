@@ -66,8 +66,8 @@ fn renderSearch(app: *App) !void {
         const label_clicked = dvui.labelClick(@src(), "{s}", .{trimmed_result}, .{}, .{ .expand = .horizontal, .id_extra = i });
         if (label_clicked) {
             const allocator = app.arena_allocator.?.allocator();
-            try app.history.append(allocator, result);
-            app.selected_package = result;
+            try app.selection_history.append(allocator, result);
+            app.selection_active = result;
             hide(app);
         }
     }

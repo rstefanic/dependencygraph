@@ -17,8 +17,8 @@ search_focus: bool = false,
 search_results: [25][]const u8 = undefined,
 
 // History and package view
-selected_package: []const u8,
-history: std.ArrayList([]const u8) = .empty,
+selection_active: []const u8,
+selection_history: std.ArrayList([]const u8) = .empty,
 
 pub fn packageTrees(self: *App, root: Package) !dvui.App.Result {
     const PackageType = enum {
@@ -161,8 +161,8 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                             }
 
                             if (label_clicked) {
-                                try self.history.append(allocator, pkg_dep_full_name);
-                                self.selected_package = pkg_dep_full_name;
+                                try self.selection_history.append(allocator, pkg_dep_full_name);
+                                self.selection_active = pkg_dep_full_name;
                             }
                         }
                     }

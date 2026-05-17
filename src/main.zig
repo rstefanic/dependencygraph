@@ -20,7 +20,7 @@ pub const dvui_app: dvui.App = .{
     .deinitFn = appDeinit,
 };
 
-var app: App = .{ .selected_package = "root" };
+var app: App = .{ .selection_active = "root" };
 pub const main = dvui.App.main;
 pub const panic = dvui.App.panic;
 pub const std_options: std.Options = .{ .logFn = dvui.App.logFn };
@@ -35,7 +35,7 @@ pub fn appInit(win: *dvui.Window) !void {
     const allocator = arena_allocator.allocator();
     app.lockfile = try dependencygraph.LockFile.init(io, allocator, "package-lock.json");
     app.arena_allocator = arena_allocator;
-    try app.history.append(allocator, "root");
+    try app.selection_history.append(allocator, "root");
 }
 
 pub fn appDeinit() void {
@@ -68,22 +68,22 @@ pub fn appFrame() !dvui.App.Result {
         const nav_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal });
         defer nav_box.deinit();
 
-        dvui.label(@src(), "{s}", .{app.selected_package}, .{ .font = dvui.Font.theme(.title), .gravity_y = 0.5 });
+        dvui.label(@src(), "{s}", .{app.selection_active}, .{ .font = dvui.Font.theme(.title), .gravity_y = 0.5 });
 
         _ = dvui.spacer(@src(), .{});
 
         // Back button if there's history
-        const button_enabled = app.history.items.len > 1;
+        const button_enabled = app.selection_history.items.len > 1;
         if (button_enabled) {
             const clicked = dvui.button(@src(), "Back", .{}, .{});
             if (clicked) {
-                _ = app.history.pop(); // Remove last element
-                app.selected_package = app.history.items[app.history.items.len - 1];
+                _ = app.selection_history.pop(); // Remove last element
+                app.selection_active = app.selection_history.items[app.selection_history.items.len - 1];
             }
         }
     }
 
-    if (app.lockfile.packages.get(app.selected_package)) |pkg| {
+    if (app.lockfile.packages.get(app.selection_active)) |pkg| {
         return app.packageTrees(pkg);
     }
 
