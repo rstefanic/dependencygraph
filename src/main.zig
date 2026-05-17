@@ -5,6 +5,7 @@ const App = @import("App.zig");
 const Allocator = std.mem.Allocator;
 
 const dependencygraph = @import("dependencygraph");
+const Search = @import("search.zig");
 
 pub const dvui_app: dvui.App = .{
     .config = .{
@@ -48,6 +49,9 @@ pub fn appFrame() !dvui.App.Result {
 
     const padding_box = dvui.box(@src(), .{}, .{ .expand = .both, .id_extra = 0x0123456789, .margin = dvui.Rect{ .x = 20, .y = 10, .w = 20, .h = 10 } });
     defer padding_box.deinit();
+
+    // Render the search model if the user has opened it.
+    try Search.frame(&app);
 
     {
         const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
