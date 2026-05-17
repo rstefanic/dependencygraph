@@ -8,9 +8,15 @@ const App = @This();
 
 lockfile: dependencyGraph.LockFile = undefined,
 arena_allocator: ?std.heap.ArenaAllocator = undefined,
-show_search: bool = false,
+
+// Search fields
+search_show: bool = false,
 search_buf: [256]u8 = undefined,
-focus_search: bool = false,
+search_buf_len: u32 = 0,
+search_focus: bool = false,
+search_results: [25][]const u8 = undefined,
+
+// History and package view
 selected_package: []const u8,
 history: std.ArrayList([]const u8) = .empty,
 
