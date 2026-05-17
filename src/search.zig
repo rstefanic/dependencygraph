@@ -6,16 +6,17 @@ const App = @import("App.zig");
 const Search = @This();
 
 pub fn frame(app: *App) void {
-    if (!app.show_search) {
-        for (dvui.events()) |e| {
-            switch (e.evt) {
-                .key => {
-                    if (e.evt.key.code == .slash) {
-                        app.show_search = true;
-                    }
-                },
-                else => break,
-            }
+    for (dvui.events()) |e| {
+        switch (e.evt) {
+            .key => {
+                const key = e.evt.key.code;
+                if (!app.show_search and key == .slash) {
+                    app.show_search = true;
+                } else if (app.show_search and key == .escape) {
+                    app.show_search = false;
+                }
+            },
+            else => break,
         }
     }
 
@@ -32,4 +33,6 @@ fn renderSearch() void {
         .{},
     );
     defer floating_window.deinit();
+
+    {}
 }
