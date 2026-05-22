@@ -122,6 +122,7 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
 
                         // See if we can find the actual package's version that's install.
                         var actual_dependency_version: ?[]const u8 = undefined;
+                        var maybe_license: ?[]const u8 = undefined;
                         const pkg_dep_full_name = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", dependency_name });
                         const pkg_dep_sub_pkg_full_name = try std.mem.concat(allocator, u8, &[_][]const u8{ node_modules_path, "/", pkg_dep_full_name });
                         actual: {
@@ -130,12 +131,14 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                             // level and this package has a different version of its dependency.
                             if (self.lockfile.packages.get(pkg_dep_sub_pkg_full_name)) |actual| {
                                 actual_dependency_version = actual.version;
+                                maybe_license = actual.license;
                                 break :actual;
                             }
 
                             // Check the top node_modules folder to see if the dependency is shared.
                             if (self.lockfile.packages.get(pkg_dep_full_name)) |actual| {
                                 actual_dependency_version = actual.version;
+                                maybe_license = actual.license;
                                 break :actual;
                             }
 
@@ -158,6 +161,10 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                             dvui.label(@src(), "Required: {s}", .{dependency_value}, .{ .expand = .horizontal });
                             if (actual_dependency_version) |actual| {
                                 dvui.label(@src(), "Actual: {s}", .{actual}, .{ .expand = .horizontal });
+                            }
+
+                            if (maybe_license) |license| {
+                                dvui.label(@src(), "License: {s}", .{license}, .{ .expand = .horizontal });
                             }
 
                             if (label_clicked) {
