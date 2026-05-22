@@ -62,8 +62,7 @@ fn renderSearch(app: *App) !void {
     // Run the search and stores the results in `app.search_resuts`.
     doSearch(app);
     for (app.search_results, 0..) |result, i| {
-        const trimmed_result = if (std.mem.startsWith(u8, result, "node_modules/")) result[13..] else result;
-        const label_clicked = dvui.labelClick(@src(), "{s}", .{trimmed_result}, .{}, .{ .expand = .horizontal, .id_extra = i });
+        const label_clicked = dvui.labelClick(@src(), "{s}", .{result}, .{}, .{ .expand = .horizontal, .id_extra = i });
         if (label_clicked) {
             const allocator = app.arena_allocator.?.allocator();
             try app.selection_history.append(allocator, result);

@@ -1,4 +1,5 @@
 const std = @import("std");
+const assert = std.debug.assert;
 const dvui = @import("dvui");
 
 const dependencyGraph = @import("dependencygraph");
@@ -112,8 +113,7 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
 
             // Find the package and list its dependencies.
             const allocator = self.arena_allocator.?.allocator();
-            const node_modules_path = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", package_name });
-            if (self.lockfile.packages.get(node_modules_path)) |node_modules_package| {
+            if (self.lockfile.packages.get(package_name)) |node_modules_package| {
                 if (node_modules_package.dependencies) |node_modules_dependencies| {
                     var node_module_dependencies_it = node_modules_dependencies.iterator();
                     while (node_module_dependencies_it.next()) |dependency| {
@@ -122,21 +122,24 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
 
                         // See if we can find the actual package's version that's install.
                         var actual_dependency_version: ?[]const u8 = undefined;
+                        var actual_package_path: ?[]const u8 = undefined;
                         var maybe_license: ?[]const u8 = undefined;
-                        const pkg_dep_full_name = try std.mem.concat(allocator, u8, &[_][]const u8{ "node_modules/", dependency_name });
-                        const pkg_dep_sub_pkg_full_name = try std.mem.concat(allocator, u8, &[_][]const u8{ node_modules_path, "/", pkg_dep_full_name });
+
                         actual: {
-                            // First check to see if this package exists in this package's node_modules_folder.
+                            // First check to see if this package exists in this package's node_modules folder.
                             // This could mean that there's another version that's conflicting at the package
                             // level and this package has a different version of its dependency.
-                            if (self.lockfile.packages.get(pkg_dep_sub_pkg_full_name)) |actual| {
+                            const nested_package_path = try std.mem.concat(allocator, u8, &[_][]const u8{ package_name, "/node_modules/", dependency_name });
+                            if (self.lockfile.packages.get(nested_package_path)) |actual| {
+                                actual_package_path = nested_package_path;
                                 actual_dependency_version = actual.version;
                                 maybe_license = actual.license;
                                 break :actual;
                             }
 
                             // Check the top node_modules folder to see if the dependency is shared.
-                            if (self.lockfile.packages.get(pkg_dep_full_name)) |actual| {
+                            if (self.lockfile.packages.get(dependency_name)) |actual| {
+                                actual_package_path = dependency_name;
                                 actual_dependency_version = actual.version;
                                 maybe_license = actual.license;
                                 break :actual;
@@ -145,6 +148,8 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                             // Fall back showing something. This means that we couldn't find it and it's probably a bug.
                             actual_dependency_version = "N/A";
                         }
+
+                        assert(actual_package_path != null);
 
                         // TODO: This is not really a reliable way to produce a unique
                         // hash. Adler32 only takes the first 16 characters when
@@ -168,8 +173,8 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                             }
 
                             if (label_clicked) {
-                                try self.selection_history.append(allocator, pkg_dep_full_name);
-                                self.selection_active = pkg_dep_full_name;
+                                try self.selection_history.append(allocator, actual_package_path.?);
+                                self.selection_active = actual_package_path.?;
                             }
                         }
                     }

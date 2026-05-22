@@ -91,7 +91,12 @@ pub const LockFile = struct {
 
         while (packages_it.next()) |pkg| {
             const pkg_key = pkg.key_ptr.*;
-            const pkg_name = if (std.mem.eql(u8, pkg_key, "")) "root" else pkg_key;
+            var pkg_name = if (std.mem.eql(u8, pkg_key, "")) "root" else pkg_key;
+
+            // Drop the leading "node_modules/" from the name if it exists.
+            if (std.mem.startsWith(u8, pkg_name, "node_modules/")) {
+                pkg_name = pkg_name[13..];
+            }
 
             assert(pkg.value_ptr.* == .object);
             const dep_obj = pkg.value_ptr.*.object;
