@@ -144,12 +144,10 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                                 maybe_license = actual.license;
                                 break :actual;
                             }
-
-                            // Fall back showing something. This means that we couldn't find it and it's probably a bug.
-                            actual_dependency_version = "N/A";
                         }
 
                         assert(actual_package_path != null);
+                        assert(actual_dependency_version != null);
 
                         // TODO: This is not really a reliable way to produce a unique
                         // hash. Adler32 only takes the first 16 characters when
