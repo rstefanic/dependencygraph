@@ -110,13 +110,13 @@ pub const LockFile = struct {
                 .license = if (dep_obj.get("license")) |license| license.string else null,
             };
 
-            try addHashmapIfExists(allocator, &dep.bin, dep_obj.get("bin"));
-            try addHashmapIfExists(allocator, &dep.engines, dep_obj.get("engines"));
+            try addHashmapIfFieldExists(allocator, &dep.bin, dep_obj.get("bin"));
+            try addHashmapIfFieldExists(allocator, &dep.engines, dep_obj.get("engines"));
 
-            try addHashmapIfExists(allocator, &dep.dependencies, dep_obj.get("dependencies"));
-            try addHashmapIfExists(allocator, &dep.dev_dependencies, dep_obj.get("devDependencies"));
-            try addHashmapIfExists(allocator, &dep.peer_dependencies, dep_obj.get("peerDependencies"));
-            try addHashmapIfExists(allocator, &dep.optional_dependencies, dep_obj.get("optionalDependencies"));
+            try addHashmapIfFieldExists(allocator, &dep.dependencies, dep_obj.get("dependencies"));
+            try addHashmapIfFieldExists(allocator, &dep.dev_dependencies, dep_obj.get("devDependencies"));
+            try addHashmapIfFieldExists(allocator, &dep.peer_dependencies, dep_obj.get("peerDependencies"));
+            try addHashmapIfFieldExists(allocator, &dep.optional_dependencies, dep_obj.get("optionalDependencies"));
 
             try packages.put(pkg_name, dep);
         }
@@ -127,22 +127,32 @@ pub const LockFile = struct {
     /// If the JSON object passed in exists, then a StringHashMap will be
     /// allocated at the `hashmap` location given and filled with the value
     /// from the JSON object.
-    fn addHashmapIfExists(allocator: std.mem.Allocator, hashmap: *?std.StringHashMap([]const u8), maybe_json_obj: ?std.json.Value) !void {
-        if (maybe_json_obj) |json_obj| {
-            // TODO: Some cases, such as "engine", may not always be an object and it could be an array.
-            if (json_obj != .object) {
-                std.debug.print("{} was not an object\n", .{json_obj});
-                return;
-            }
+    fn addHashmapIfFieldExists(allocator: std.mem.Allocator, hashmap: *?std.StringHashMap([]const u8), maybe_field: ?std.json.Value) !void {
+        if (maybe_field) |field| {
+            assert(field == .object or field == .array);
 
             hashmap.* = std.StringHashMap([]const u8).init(allocator);
             errdefer hashmap.*.?.deinit();
 
-            var it = json_obj.object.iterator();
-            while (it.next()) |entity| {
-                const name = entity.key_ptr.*;
-                const version = entity.value_ptr.*.string; // TODO: Improve deserialization here
-                try hashmap.*.?.put(name, version);
+            switch (field) {
+                .array => {
+                    for (field.array.items, 0..) |element, i| {
+                        var buf: [3]u8 = undefined;
+                        const key = try std.fmt.bufPrint(&buf, "{}", .{i});
+
+                        assert(element == .string);
+                        try hashmap.*.?.put(key, element.string);
+                    }
+                },
+                .object => {
+                    var it = field.object.iterator();
+                    while (it.next()) |entity| {
+                        const name = entity.key_ptr.*;
+                        const version = entity.value_ptr.*.string; // TODO: Improve deserialization here
+                        try hashmap.*.?.put(name, version);
+                    }
+                },
+                else => unreachable,
             }
         }
     }
