@@ -6,6 +6,7 @@ const dependencyGraph = @import("dependencygraph");
 const Package = dependencyGraph.Package;
 
 const App = @This();
+const MAX_SEARCH_RESULTS_LEN: u32 = 25;
 
 lockfile: dependencyGraph.LockFile = undefined,
 arena_allocator: ?std.heap.ArenaAllocator = undefined,
@@ -15,7 +16,8 @@ search_show: bool = false,
 search_buf: [256]u8 = undefined,
 search_buf_len: u32 = 0,
 search_focus: bool = false,
-search_results: [25][]const u8 = undefined,
+search_results: [MAX_SEARCH_RESULTS_LEN][]const u8 = undefined,
+search_results_len: u32 = 0,
 
 // History and package view
 selection_active: []const u8,

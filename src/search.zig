@@ -62,6 +62,8 @@ fn renderSearch(app: *App) !void {
     // Run the search and stores the results in `app.search_resuts`.
     doSearch(app);
     for (app.search_results, 0..) |result, i| {
+        if (i == app.search_results_len) break;
+
         const label_clicked = dvui.labelClick(@src(), "{s}", .{result}, .{}, .{ .expand = .horizontal, .id_extra = i });
         if (label_clicked) {
             const allocator = app.arena_allocator.?.allocator();
@@ -91,6 +93,7 @@ fn renderSearch(app: *App) !void {
 }
 
 fn doSearch(app: *App) void {
+    const MAX_SEARCH_RESULTS_LEN: u32 = 25;
     var i: u32 = 0;
 
     // Trim trailing whitespace and null bytes.
@@ -104,6 +107,8 @@ fn doSearch(app: *App) void {
             i += 1;
         }
 
-        if (i == 25) break;
+        if (i == MAX_SEARCH_RESULTS_LEN) break;
     }
+
+    app.search_results_len = i;
 }
