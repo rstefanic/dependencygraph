@@ -53,7 +53,7 @@ pub const LockFile = struct {
     allocator: std.mem.Allocator,
     name: []const u8,
     version: []const u8,
-    lockfileVersion: i64,
+    lockfile_version: i64,
     requires: bool,
     packages: std.StringHashMap(Package),
 
@@ -74,10 +74,10 @@ pub const LockFile = struct {
         // Pull out the top level properties
         const name = package.get("name").?.string;
         const version = package.get("version").?.string;
-        const lockfileVersion = package.get("lockfileVersion").?.integer;
+        const lockfile_version = package.get("lockfileVersion").?.integer;
         const requires = package.get("requires").?.bool;
 
-        if (lockfileVersion != 3) {
+        if (lockfile_version != 3) {
             return error.LockfileVersionNotSupported;
         }
 
@@ -126,7 +126,7 @@ pub const LockFile = struct {
             try packages.put(pkg_name, dep);
         }
 
-        return .{ .allocator = allocator, .name = name, .version = version, .lockfileVersion = lockfileVersion, .requires = requires, .packages = packages };
+        return .{ .allocator = allocator, .name = name, .version = version, .lockfile_version = lockfile_version, .requires = requires, .packages = packages };
     }
 
     /// If the JSON object passed in exists, then a StringHashMap will be
