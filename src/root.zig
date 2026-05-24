@@ -95,10 +95,8 @@ pub const LockFile = struct {
             const package_name = pkg.key_ptr.*;
             const package_json = pkg.value_ptr.*.object;
 
-            // Depending on the package type, it will determine which fields are required when parsing the lockfile.
-            const package_classification = classifyPackage(package_name);
             var package = Package{
-                .version = if (package_json.get("version")) |version| version.string else null,
+                .version = null, // See code block below on handling version being null.
                 .resolved = if (package_json.get("resolved")) |resolved| resolved.string else null,
                 .integrity = if (package_json.get("integrity")) |integrity| integrity.string else null,
                 .link = if (package_json.get("link")) |link| link.bool else null,
@@ -110,6 +108,43 @@ pub const LockFile = struct {
                 .has_shrinkwrap = if (package_json.get("has_shrinkwrap")) |has_shrinkwrap| has_shrinkwrap.bool else null,
                 .license = if (package_json.get("license")) |license| license.string else null,
             };
+
+            // Depending on the package type, it will determine which fields are required when parsing the lockfile.
+            const package_classification = classifyPackage(package_name);
+            const requires_version = switch (package_classification) {
+                .root, .local => false,
+                .node_module => required: {
+                    // If it's a node_module and it's linked, then the 'version' metadata isn't required.
+                    if (package.link) |link| {
+                        if (link) {
+                            break :required false;
+                        }
+                    }
+
+                    // If it doesn't have 'link', then check the 'resolved' metadata prefix.
+                    if (package.resolved) |resolved| {
+                        if (std.mem.startsWith(u8, resolved, "file:")) {
+                            break :required false;
+                        }
+
+                        if (std.mem.startsWith(u8, resolved, "workspace:")) {
+                            break :required false;
+                        }
+                    }
+
+                    // If we get here, then we need a 'version' otherwise the
+                    // package is invalid otherwise the package is invalid.
+                    break :required true;
+                },
+            };
+
+            if (package_json.get("version")) |version| {
+                assert(version == .string);
+                package.version = version.string;
+            } else if (requires_version) {
+                std.debug.print("Invalid package {s}\n", .{package_name});
+                return error.MissingRequiredPackageVersion;
+            }
 
             // Parse out the objects on the package as hashmaps.
             try addHashmapIfFieldExists(allocator, &package.bin, package_json.get("bin"));
