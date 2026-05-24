@@ -92,8 +92,11 @@ pub const LockFile = struct {
         var packages_json_it = packages_json.object.iterator();
         while (packages_json_it.next()) |pkg| {
             assert(pkg.value_ptr.* == .object);
-
+            const package_name = pkg.key_ptr.*;
             const package_json = pkg.value_ptr.*.object;
+
+            // Depending on the package type, it will determine which fields are required when parsing the lockfile.
+            const package_classification = classifyPackage(package_name);
             var package = Package{
                 .version = if (package_json.get("version")) |version| version.string else null,
                 .resolved = if (package_json.get("resolved")) |resolved| resolved.string else null,
@@ -117,14 +120,11 @@ pub const LockFile = struct {
             try addHashmapIfFieldExists(allocator, &package.optional_dependencies, package_json.get("optionalDependencies"));
 
             // Create the name that we can use to reference the package.
-            const package_name = pkg.key_ptr.*;
-            // The empty package name is the root package. While this is a valid JSON key,
-            // it's weird and I prefer calling it the root package.
-            var name = if (std.mem.eql(u8, package_name, "")) "root" else package_name;
-            // Drop the leading "node_modules/" from the name if it exists.
-            if (std.mem.startsWith(u8, name, "node_modules/")) {
-                name = name[13..];
-            }
+            const name = switch (package_classification) {
+                .root => "root",
+                .node_module => package_name[13..],
+                .local => package_name,
+            };
 
             try packages.put(name, package);
         }
@@ -175,5 +175,17 @@ pub const LockFile = struct {
         while (it.next()) |pkg| {
             pkg.value_ptr.*.deinit();
         }
+    }
+
+    fn classifyPackage(name: []const u8) enum { root, node_module, local } {
+        if (std.mem.eql(u8, name, "")) {
+            return .root;
+        }
+
+        if (std.mem.startsWith(u8, name, "node_modules/")) {
+            return .node_module;
+        }
+
+        return .local;
     }
 };
