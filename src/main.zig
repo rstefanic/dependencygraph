@@ -56,9 +56,11 @@ pub fn appFrame() !dvui.App.Result {
     {
         const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
         defer header_box.deinit();
-        dvui.label(@src(), "{s}", .{app.lockfile.name}, .{ .expand = .horizontal, .font = .theme(.title) });
+        const selected_package_name = if (std.mem.eql(u8, app.selection_active, "root")) app.lockfile.name else app.selection_active;
+        dvui.label(@src(), "{s}", .{selected_package_name}, .{ .expand = .horizontal, .font = .theme(.title) });
     }
     {
+        // TODO: Either move this or rename this label once I have a better idea. This is misleading.
         const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
         defer header_box.deinit();
         dvui.label(@src(), "Dependency count: {d}", .{app.lockfile.packages.count()}, .{ .expand = .horizontal });
@@ -67,10 +69,6 @@ pub fn appFrame() !dvui.App.Result {
     {
         const nav_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal });
         defer nav_box.deinit();
-
-        dvui.label(@src(), "{s}", .{app.selection_active}, .{ .font = dvui.Font.theme(.title), .gravity_y = 0.5 });
-
-        _ = dvui.spacer(@src(), .{});
 
         // Back button if there's history
         const button_enabled = app.selection_history.items.len > 1;
