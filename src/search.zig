@@ -70,6 +70,24 @@ fn renderSearch(app: *App) !void {
             hide(app);
         }
     }
+
+    if (app.search_show) {
+        // See if the user is trying to navigate the selection here. These
+        // key code events are handled here so that `tabIndex*` functions work
+        // within the context of this window.
+        for (dvui.events()) |e| {
+            switch (e.evt) {
+                .key => |key| {
+                    if (key.code == .up and key.action == .up) {
+                        dvui.tabIndexPrev(null);
+                    } else if (key.code == .down and key.action == .up) {
+                        dvui.tabIndexNext(null);
+                    }
+                },
+                else => break,
+            }
+        }
+    }
 }
 
 fn doSearch(app: *App) void {
