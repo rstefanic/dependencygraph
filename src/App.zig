@@ -121,35 +121,7 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                     while (node_module_dependencies_it.next()) |dependency| {
                         const dependency_name = dependency.key_ptr.*;
                         const dependency_value = dependency.value_ptr.*;
-
-                        // See if we can find the actual package's version that's install.
-                        var actual_dependency_version: ?[]const u8 = undefined;
-                        var actual_package_path: ?[]const u8 = undefined;
-                        var maybe_license: ?[]const u8 = undefined;
-
-                        actual: {
-                            // First check to see if this package exists in this package's node_modules folder.
-                            // This could mean that there's another version that's conflicting at the package
-                            // level and this package has a different version of its dependency.
-                            const nested_package_path = try std.mem.concat(allocator, u8, &[_][]const u8{ package_name, "/node_modules/", dependency_name });
-                            if (self.lockfile.packages.get(nested_package_path)) |actual| {
-                                actual_package_path = nested_package_path;
-                                actual_dependency_version = actual.version;
-                                maybe_license = actual.license;
-                                break :actual;
-                            }
-
-                            // Check the top node_modules folder to see if the dependency is shared.
-                            if (self.lockfile.packages.get(dependency_name)) |actual| {
-                                actual_package_path = dependency_name;
-                                actual_dependency_version = actual.version;
-                                maybe_license = actual.license;
-                                break :actual;
-                            }
-                        }
-
-                        assert(actual_package_path != null);
-                        assert(actual_dependency_version != null);
+                        const resolved = try self.resolvePackageByName(allocator, package_name, dependency_name);
 
                         // TODO: This is not really a reliable way to produce a unique
                         // hash. Adler32 only takes the first 16 characters when
@@ -164,17 +136,17 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                             defer pkg_dep_box.deinit();
                             const label_clicked = dvui.labelClick(@src(), "{s}", .{dependency_name}, .{}, .{ .expand = .horizontal });
                             dvui.label(@src(), "Required: {s}", .{dependency_value}, .{ .expand = .horizontal });
-                            if (actual_dependency_version) |actual| {
-                                dvui.label(@src(), "Actual: {s}", .{actual}, .{ .expand = .horizontal });
+                            if (resolved.package.version) |version| {
+                                dvui.label(@src(), "Actual: {s}", .{version}, .{ .expand = .horizontal });
                             }
 
-                            if (maybe_license) |license| {
+                            if (resolved.package.license) |license| {
                                 dvui.label(@src(), "License: {s}", .{license}, .{ .expand = .horizontal });
                             }
 
                             if (label_clicked) {
-                                try self.selection_history.append(allocator, actual_package_path.?);
-                                self.selection_active = actual_package_path.?;
+                                try self.selection_history.append(allocator, resolved.path);
+                                self.selection_active = resolved.path;
                             }
                         }
                     }
@@ -188,4 +160,24 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
     }
 
     return .ok;
+}
+
+const ResolvedPackage = struct { path: []const u8, package: *const Package };
+
+// Resolve the requested package based on the dependency and package name.
+fn resolvePackageByName(self: *App, allocator: std.mem.Allocator, package_name: []const u8, dependency_of: []const u8) !ResolvedPackage {
+    // First check to see if this package exists nested inthis package's node_modules folder. This
+    // could mean that there's another version that's conflicting at the package level and this
+    // package has a different version of its dependency.
+    const nested_package_path = try std.mem.concat(allocator, u8, &[_][]const u8{ package_name, "/node_modules/", dependency_of });
+    if (self.lockfile.packages.getPtr(nested_package_path)) |resolved_pkg| {
+        return .{ .path = nested_package_path, .package = resolved_pkg };
+    }
+
+    // Check the top node_modules folder to see if the dependency is shared.
+    if (self.lockfile.packages.getPtr(dependency_of)) |resolved_pkg| {
+        return .{ .path = dependency_of, .package = resolved_pkg };
+    }
+
+    return error.NoPackageFound;
 }
