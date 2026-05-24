@@ -91,6 +91,8 @@ pub const LockFile = struct {
 
         while (packages_it.next()) |pkg| {
             const pkg_key = pkg.key_ptr.*;
+            // The empty package name is the root package. While this is a valid JSON key,
+            // it's weird and I prefer calling it the root package.
             var pkg_name = if (std.mem.eql(u8, pkg_key, "")) "root" else pkg_key;
 
             // Drop the leading "node_modules/" from the name if it exists.
