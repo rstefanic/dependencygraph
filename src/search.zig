@@ -79,21 +79,24 @@ fn renderSearch(app: *App) !void {
         }
     }
 
-    if (app.search_show) {
-        // See if the user is trying to navigate the selection here. These
-        // key code events are handled here so that `tabIndex*` functions work
-        // within the context of this window.
-        for (dvui.events()) |e| {
-            switch (e.evt) {
-                .key => |key| {
-                    if (key.code == .up and key.action == .up) {
-                        dvui.tabIndexPrev(null);
-                    } else if (key.code == .down and key.action == .up) {
-                        dvui.tabIndexNext(null);
-                    }
-                },
-                else => break,
-            }
+    // See if the user is trying to navigate the selection here. These
+    // key code events are handled here so that `tabIndex*` functions work
+    // within the context of this window.
+    for (dvui.events()) |e| {
+        switch (e.evt) {
+            .key => |key| {
+                const up_key_released = key.code == .up and key.action == .up;
+                const ctrl_p_released = key.mod.control() and key.code == .p and key.action == .up;
+                const down_key_released = key.code == .down and key.action == .up;
+                const ctrl_n_released = key.mod.control() and key.code == .n and key.action == .up;
+
+                if (up_key_released or ctrl_p_released) {
+                    dvui.tabIndexPrev(null);
+                } else if (down_key_released or ctrl_n_released) {
+                    dvui.tabIndexNext(null);
+                }
+            },
+            else => break,
         }
     }
 }
