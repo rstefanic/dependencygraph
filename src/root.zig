@@ -70,13 +70,60 @@ pub const LockFile = struct {
         var packages = std.StringHashMap(Package).init(allocator);
         errdefer packages.deinit();
 
-        // Iterate throught the "packages" object on the lockfile building
-        // up our own model of it.
+        // Parse the packages field.
         const packages_json = lockfile.get("packages") orelse {
             return error.MissingPackagesField;
         };
         assert(packages_json == .object);
-        var packages_json_it = packages_json.object.iterator();
+        try parsePackages(allocator, &packages, packages_json.object);
+
+        // Grab high level information about the lockfile.
+        const name_json = lockfile.get("name") orelse {
+            return error.LockfileMissingNameField;
+        };
+        const version_json = lockfile.get("version") orelse {
+            return error.LockfileMissingVersionField;
+        };
+        const requires_json = lockfile.get("requires") orelse {
+            return error.LockfileMissingRequiresField;
+        };
+
+        assert(name_json == .string);
+        assert(version_json == .string);
+        assert(requires_json == .bool);
+
+        const name = name_json.string;
+        const version = version_json.string;
+        const requires = requires_json.bool;
+
+        return .{ .allocator = allocator, .name = name, .version = version, .lockfile_version = lockfile.get("lockfileVersion").?.integer, .requires = requires, .packages = packages };
+    }
+
+    fn readLockfile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
+        const file = try std.Io.Dir.cwd().openFile(io, path, .{ .mode = .read_only });
+        defer file.close(io);
+
+        // Read the file into a buffer.
+        const stat = try file.stat(io);
+        const size = stat.size;
+        const buffer = try allocator.alloc(u8, size);
+        _ = try file.readPositionalAll(io, buffer, 0);
+        return buffer;
+    }
+
+    fn validateLockfileVersion(lockfile_json: std.json.ObjectMap) !void {
+        // Currently only support reading version 3 lockfiles.
+        const lockfile_version = lockfile_json.get("lockfileVersion") orelse {
+            return error.MissingLockfileVersion;
+        };
+        assert(lockfile_version == .integer);
+        if (lockfile_version.integer != 3) {
+            return error.LockfileVersionNotSupported;
+        }
+    }
+
+    fn parsePackages(allocator: std.mem.Allocator, packages: *std.StringHashMap(Package), packages_json: std.json.ObjectMap) !void {
+        var packages_json_it = packages_json.iterator();
         while (packages_json_it.next()) |pkg| {
             assert(pkg.value_ptr.* == .object);
             const package_name = pkg.key_ptr.*;
@@ -159,50 +206,6 @@ pub const LockFile = struct {
             };
 
             try packages.put(name, package);
-        }
-
-        // Grab high level information about the lockfile.
-        const name_json = lockfile.get("name") orelse {
-            return error.LockfileMissingNameField;
-        };
-        const version_json = lockfile.get("version") orelse {
-            return error.LockfileMissingVersionField;
-        };
-        const requires_json = lockfile.get("requires") orelse {
-            return error.LockfileMissingRequiresField;
-        };
-
-        assert(name_json == .string);
-        assert(version_json == .string);
-        assert(requires_json == .bool);
-
-        const name = name_json.string;
-        const version = version_json.string;
-        const requires = requires_json.bool;
-
-        return .{ .allocator = allocator, .name = name, .version = version, .lockfile_version = lockfile.get("lockfileVersion").?.integer, .requires = requires, .packages = packages };
-    }
-
-    fn readLockfile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
-        const file = try std.Io.Dir.cwd().openFile(io, path, .{ .mode = .read_only });
-        defer file.close(io);
-
-        // Read the file into a buffer.
-        const stat = try file.stat(io);
-        const size = stat.size;
-        const buffer = try allocator.alloc(u8, size);
-        _ = try file.readPositionalAll(io, buffer, 0);
-        return buffer;
-    }
-
-    fn validateLockfileVersion(lockfile_json: std.json.ObjectMap) !void {
-        // Currently only support reading version 3 lockfiles.
-        const lockfile_version = lockfile_json.get("lockfileVersion") orelse {
-            return error.MissingLockfileVersion;
-        };
-        assert(lockfile_version == .integer);
-        if (lockfile_version.integer != 3) {
-            return error.LockfileVersionNotSupported;
         }
     }
 
