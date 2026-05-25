@@ -89,6 +89,7 @@ pub const LockFile = struct {
         const packages_json = lockfile.get("packages") orelse {
             return error.MissingPackagesField;
         };
+        assert(packages_json == .object);
         var packages_json_it = packages_json.object.iterator();
         while (packages_json_it.next()) |pkg| {
             assert(pkg.value_ptr.* == .object);
@@ -97,19 +98,29 @@ pub const LockFile = struct {
 
             var package = Package{
                 .version = null, // See code block below on handling version being null.
-                .resolved = if (package_json.get("resolved")) |resolved| resolved.string else null,
+                .resolved = if (package_json.get("resolved")) |resolved| resolved: {
+                    assert(resolved == .string);
+                    break :resolved resolved.string;
+                } else null,
                 .integrity = if (package_json.get("integrity")) |integrity| integrity.string else null,
-                .link = if (package_json.get("link")) |link| link.bool else null,
+                .link = if (package_json.get("link")) |link| link: {
+                    assert(link == .bool);
+                    break :link link.bool;
+                } else null,
                 .dev = if (package_json.get("dev")) |dev| dev.bool else null,
                 .optional = if (package_json.get("optional")) |optional| optional.bool else null,
                 .dev_optional = if (package_json.get("dev_optional")) |dev_optional| dev_optional.bool else null,
                 .in_bundle = if (package_json.get("in_bundle")) |in_bundle| in_bundle.bool else null,
                 .has_install_script = if (package_json.get("has_install_script")) |has_install_script| has_install_script.bool else null,
                 .has_shrinkwrap = if (package_json.get("has_shrinkwrap")) |has_shrinkwrap| has_shrinkwrap.bool else null,
-                .license = if (package_json.get("license")) |license| license.string else null,
+                .license = if (package_json.get("license")) |license| license: {
+                    assert(license == .string);
+                    break :license license.string;
+                } else null,
             };
 
             // Depending on the package type, it will determine which fields are required when parsing the lockfile.
+            // Fileds that we heavily rely on are asserted to be the expected type.
             const package_classification = classifyPackage(package_name);
             const requires_version = switch (package_classification) {
                 .root, .local => false,
@@ -165,9 +176,23 @@ pub const LockFile = struct {
         }
 
         // Grab high level information about the lockfile.
-        const name = lockfile.get("name").?.string;
-        const version = lockfile.get("version").?.string;
-        const requires = lockfile.get("requires").?.bool;
+        const name_json = lockfile.get("name") orelse {
+            return error.LockfileMissingNameField;
+        };
+        const version_json = lockfile.get("version") orelse {
+            return error.LockfileMissingVersionField;
+        };
+        const requires_json = lockfile.get("requires") orelse {
+            return error.LockfileMissingRequiresField;
+        };
+
+        assert(name_json == .string);
+        assert(version_json == .string);
+        assert(requires_json == .bool);
+
+        const name = name_json.string;
+        const version = version_json.string;
+        const requires = requires_json.bool;
 
         return .{ .allocator = allocator, .name = name, .version = version, .lockfile_version = lockfile_version.integer, .requires = requires, .packages = packages };
     }
@@ -185,6 +210,7 @@ pub const LockFile = struct {
             switch (field) {
                 .array => {
                     for (field.array.items, 0..) |element, i| {
+                        assert(i < 999);
                         var buf: [3]u8 = undefined;
                         const key = try std.fmt.bufPrint(&buf, "{}", .{i});
 
