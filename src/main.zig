@@ -56,6 +56,12 @@ pub fn appFrame() !dvui.App.Result {
     {
         const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
         defer header_box.deinit();
+        dvui.label(@src(), "press \"/\" to search", .{}, .{ .expand = .horizontal, .font = .theme(.mono) });
+    }
+
+    {
+        const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
+        defer header_box.deinit();
         const selected_package_name = if (std.mem.eql(u8, app.selection_active, "root")) app.lockfile.name else app.selection_active;
         dvui.label(@src(), "{s}", .{selected_package_name}, .{ .expand = .horizontal, .font = .theme(.title) });
     }

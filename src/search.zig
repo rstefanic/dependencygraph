@@ -56,6 +56,12 @@ fn renderSearch(app: *App) !void {
         }
     }
 
+    {
+        const scroll_header = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
+        defer scroll_header.deinit();
+        dvui.label(@src(), "Press \"esc\" to close search", .{}, .{ .expand = .horizontal, .font = .theme(.mono) });
+    }
+
     const scroll = dvui.scrollArea(@src(), .{}, .{ .expand = .both });
     defer scroll.deinit();
 
