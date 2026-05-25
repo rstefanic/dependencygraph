@@ -51,6 +51,7 @@ pub const Package = struct {
 
 pub const LockFile = struct {
     allocator: std.mem.Allocator,
+    buffer: []u8, // pointer to the raw JSON data
     name: []const u8,
     version: []const u8,
     lockfile_version: i64,
@@ -96,7 +97,7 @@ pub const LockFile = struct {
         const version = version_json.string;
         const requires = requires_json.bool;
 
-        return .{ .allocator = allocator, .name = name, .version = version, .lockfile_version = lockfile.get("lockfileVersion").?.integer, .requires = requires, .packages = packages };
+        return .{ .allocator = allocator, .buffer = buffer, .name = name, .version = version, .lockfile_version = lockfile.get("lockfileVersion").?.integer, .requires = requires, .packages = packages };
     }
 
     fn readLockfile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
@@ -252,6 +253,7 @@ pub const LockFile = struct {
         while (it.next()) |pkg| {
             pkg.value_ptr.*.deinit();
         }
+        self.allocator.free(self.buffer);
     }
 
     const PackageClassification = enum {
