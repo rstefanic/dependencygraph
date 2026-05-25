@@ -121,17 +121,13 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                     while (node_module_dependencies_it.next()) |dependency| {
                         const dependency_name = dependency.key_ptr.*;
                         const dependency_value = dependency.value_ptr.*;
-                        const resolved = try self.resolvePackageByName(allocator, package_name, dependency_name);
 
-                        // TODO: This is not really a reliable way to produce a unique
-                        // hash. Adler32 only takes the first 16 characters when
-                        // generating a hash, so long package names collide. The quick
-                        // fix here is to instead start with the semver number here
-                        // which is less likely to collide with the package name right
-                        // after it.
-                        const unique_name = try std.mem.concat(allocator, u8, &[_][]const u8{ dependency_value, dependency_name });
-                        const pkg_dep_hash = std.hash.Adler32.hash(unique_name);
-                        {
+                        if (self.resolvePackageByName(allocator, package_name, dependency_name)) |resolved| {
+                            // TODO: This is not really a reliable way to produce a unique hash. Adler32 only takes the first 16
+                            // characters when generating a hash, so long package names collide. The quick fix here is to instead
+                            // start with the semver number here which is less likely to collide with the package name right after it.
+                            const unique_name = try std.mem.concat(allocator, u8, &[_][]const u8{ dependency_value, dependency_name });
+                            const pkg_dep_hash = std.hash.Adler32.hash(unique_name);
                             const pkg_dep_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal, .id_extra = pkg_dep_hash });
                             defer pkg_dep_box.deinit();
                             const label_clicked = dvui.labelClick(@src(), "{s}", .{dependency_name}, .{}, .{ .expand = .horizontal });
@@ -148,6 +144,8 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                                 try self.selection_history.append(allocator, resolved.path);
                                 self.selection_active = resolved.path;
                             }
+                        } else |_| {
+                            dvui.label(@src(), "ERR: \"{s}\" not found", .{dependency_name}, .{ .expand = .horizontal });
                         }
                     }
                 } else {

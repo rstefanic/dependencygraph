@@ -83,6 +83,8 @@ pub fn appFrame() !dvui.App.Result {
 
     if (app.lockfile.packages.get(app.selection_active)) |pkg| {
         return app.packageTrees(pkg);
+    } else {
+        dvui.label(@src(), "Could not find package \"{s}\".", .{app.selection_active}, .{ .expand = .horizontal });
     }
 
     return .ok;
