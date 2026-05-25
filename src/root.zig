@@ -49,14 +49,17 @@ pub const Package = struct {
     }
 };
 
+/// Models what's needed from a package-lock.json. The raw JSON is stored here as `buffer`
+/// and the strings used in the `packages` hashmap are slices into underlying JSON data.
+/// JSON buffer and package strings share a lifetime and must be kept alive until done.
 pub const LockFile = struct {
     allocator: std.mem.Allocator,
     buffer: []u8, // pointer to the raw JSON data
+    packages: std.StringHashMap(Package), // package lookup by name
     name: []const u8,
     version: []const u8,
     lockfile_version: i64,
     requires: bool,
-    packages: std.StringHashMap(Package),
 
     pub fn init(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !LockFile {
         // Parse the lockfile as JSON.
@@ -253,7 +256,6 @@ pub const LockFile = struct {
         while (it.next()) |pkg| {
             pkg.value_ptr.*.deinit();
         }
-        self.allocator.free(self.buffer);
     }
 
     const PackageClassification = enum {
