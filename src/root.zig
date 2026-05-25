@@ -155,37 +155,12 @@ pub const LockFile = struct {
             // Depending on the package type, it will determine which fields are required when parsing the lockfile.
             // Fileds that we heavily rely on are asserted to be the expected type.
             const package_classification = classifyPackage(package_name);
-            const requires_version = switch (package_classification) {
-                .root, .local => false,
-                .node_module => required: {
-                    // If it's a node_module and it's linked, then the 'version' metadata isn't required.
-                    if (package.link) |link| {
-                        if (link) {
-                            break :required false;
-                        }
-                    }
-
-                    // If it doesn't have 'link', then check the 'resolved' metadata prefix.
-                    if (package.resolved) |resolved| {
-                        if (std.mem.startsWith(u8, resolved, "file:")) {
-                            break :required false;
-                        }
-
-                        if (std.mem.startsWith(u8, resolved, "workspace:")) {
-                            break :required false;
-                        }
-                    }
-
-                    // If we get here, then we need a 'version' otherwise the
-                    // package is invalid otherwise the package is invalid.
-                    break :required true;
-                },
-            };
+            const version_field_required = packageRequiresVersionMetadata(package_classification, &package);
 
             if (package_json.get("version")) |version| {
                 assert(version == .string);
                 package.version = version.string;
-            } else if (requires_version) {
+            } else if (version_field_required) {
                 std.debug.print("Invalid package {s}\n", .{package_name});
                 return error.MissingRequiredPackageVersion;
             }
@@ -206,6 +181,35 @@ pub const LockFile = struct {
             };
 
             try packages.put(name, package);
+        }
+    }
+
+    fn packageRequiresVersionMetadata(pc: PackageClassification, package: *Package) bool {
+        switch (pc) {
+            .root, .local => return false,
+            .node_module => {
+                // If it's a node_module and it's linked, then the 'version' metadata isn't required.
+                if (package.link) |link| {
+                    if (link) {
+                        return false;
+                    }
+                }
+
+                // If it doesn't have 'link', then check the 'resolved' metadata prefix.
+                if (package.resolved) |resolved| {
+                    if (std.mem.startsWith(u8, resolved, "file:")) {
+                        return false;
+                    }
+
+                    if (std.mem.startsWith(u8, resolved, "workspace:")) {
+                        return false;
+                    }
+                }
+
+                // If we get here, then we need a 'version' otherwise the
+                // package is invalid otherwise the package is invalid.
+                return true;
+            },
         }
     }
 
@@ -250,7 +254,13 @@ pub const LockFile = struct {
         }
     }
 
-    fn classifyPackage(name: []const u8) enum { root, node_module, local } {
+    const PackageClassification = enum {
+        root,
+        node_module,
+        local,
+    };
+
+    fn classifyPackage(name: []const u8) PackageClassification {
         if (std.mem.eql(u8, name, "")) {
             return .root;
         }
