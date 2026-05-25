@@ -70,12 +70,50 @@ fn renderSearch(app: *App) !void {
     for (app.search_results, 0..) |result, i| {
         if (i == app.search_results_len) break;
 
-        const label_clicked = dvui.labelClick(@src(), "{s}", .{result}, .{}, .{ .expand = .horizontal, .id_extra = i });
-        if (label_clicked) {
-            const allocator = app.arena_allocator.?.allocator();
-            try app.selection_history.append(allocator, result);
-            app.selection_active = result;
-            hide(app);
+        // Draw search result label. The label has a special event that we want to listen to
+        // which is why this is written in such a verbose manner vs `dvui.labelClick`.
+        {
+            var label: dvui.LabelWidget = undefined;
+            label.init(@src(), "{s}", .{result}, .{}, .{ .expand = .horizontal, .id_extra = i });
+            dvui.tabIndexSet(label.data().id, label.data().options.tab_index, null);
+
+            var focused = false;
+            if (label.data().id == dvui.focusedWidgetId()) {
+                focused = true;
+            }
+
+            var clicked = false;
+            if (dvui.clickedEx(label.data(), .{ .buttons = .any })) |_| {
+                clicked = true;
+            }
+
+            if (focused) {
+                label.data().focusBorder();
+
+                // Handle special event of ctrl+y if this label is focused to be clicked.
+                for (dvui.events()) |e| {
+                    switch (e.evt) {
+                        .key => |key| {
+                            const ctrl_y_released = key.mod.control() and key.code == .y and key.action == .up;
+                            if (ctrl_y_released) {
+                                clicked = true;
+                            }
+                        },
+                        else => break,
+                    }
+                }
+            }
+
+            // If it's been selected, add it to the history and hide the search.
+            if (clicked) {
+                const allocator = app.arena_allocator.?.allocator();
+                try app.selection_history.append(allocator, result);
+                app.selection_active = result;
+                hide(app);
+            }
+
+            label.draw();
+            label.deinit();
         }
     }
 
