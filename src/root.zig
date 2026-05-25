@@ -58,14 +58,7 @@ pub const LockFile = struct {
     packages: std.StringHashMap(Package),
 
     pub fn init(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !LockFile {
-        const file = try std.Io.Dir.cwd().openFile(io, path, .{ .mode = .read_only });
-        defer file.close(io);
-
-        // Read the file into a buffer.
-        const stat = try file.stat(io);
-        const size = stat.size;
-        const buffer = try allocator.alloc(u8, size);
-        _ = try file.readPositionalAll(io, buffer, 0);
+        const buffer = try readLockfile(allocator, io, path);
 
         // Grab the base JSON object.
         const json = try std.json.parseFromSlice(std.json.Value, allocator, buffer, .{});
@@ -195,6 +188,18 @@ pub const LockFile = struct {
         const requires = requires_json.bool;
 
         return .{ .allocator = allocator, .name = name, .version = version, .lockfile_version = lockfile_version.integer, .requires = requires, .packages = packages };
+    }
+
+    fn readLockfile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
+        const file = try std.Io.Dir.cwd().openFile(io, path, .{ .mode = .read_only });
+        defer file.close(io);
+
+        // Read the file into a buffer.
+        const stat = try file.stat(io);
+        const size = stat.size;
+        const buffer = try allocator.alloc(u8, size);
+        _ = try file.readPositionalAll(io, buffer, 0);
+        return buffer;
     }
 
     /// If the JSON object passed in exists, then a StringHashMap will be
