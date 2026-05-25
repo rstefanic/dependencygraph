@@ -119,34 +119,7 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
                 if (node_modules_package.dependencies) |node_modules_dependencies| {
                     var node_module_dependencies_it = node_modules_dependencies.iterator();
                     while (node_module_dependencies_it.next()) |dependency| {
-                        const dependency_name = dependency.key_ptr.*;
-                        const dependency_value = dependency.value_ptr.*;
-
-                        if (self.resolvePackageByName(allocator, package_name, dependency_name)) |resolved| {
-                            // TODO: This is not really a reliable way to produce a unique hash. Adler32 only takes the first 16
-                            // characters when generating a hash, so long package names collide. The quick fix here is to instead
-                            // start with the semver number here which is less likely to collide with the package name right after it.
-                            const unique_name = try std.mem.concat(allocator, u8, &[_][]const u8{ dependency_value, dependency_name });
-                            const pkg_dep_hash = std.hash.Adler32.hash(unique_name);
-                            const pkg_dep_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal, .id_extra = pkg_dep_hash });
-                            defer pkg_dep_box.deinit();
-                            const label_clicked = dvui.labelClick(@src(), "{s}", .{dependency_name}, .{}, .{ .expand = .horizontal });
-                            dvui.label(@src(), "Required: {s}", .{dependency_value}, .{ .expand = .horizontal });
-                            if (resolved.package.version) |version| {
-                                dvui.label(@src(), "Actual: {s}", .{version}, .{ .expand = .horizontal });
-                            }
-
-                            if (resolved.package.license) |license| {
-                                dvui.label(@src(), "License: {s}", .{license}, .{ .expand = .horizontal });
-                            }
-
-                            if (label_clicked) {
-                                try self.selection_history.append(allocator, resolved.path);
-                                self.selection_active = resolved.path;
-                            }
-                        } else |_| {
-                            dvui.label(@src(), "ERR: \"{s}\" not found", .{dependency_name}, .{ .expand = .horizontal });
-                        }
+                        try self.drawPackageDependencyLabels(allocator, package_name, dependency);
                     }
                 } else {
                     dvui.label(@src(), "This package has no dependencies.", .{}, .{ .expand = .horizontal });
@@ -158,6 +131,38 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
     }
 
     return .ok;
+}
+
+fn drawPackageDependencyLabels(self: *App, allocator: std.mem.Allocator, package_name: []const u8, dependency: std.StringHashMap([]const u8).Entry) !void {
+    const dependency_name = dependency.key_ptr.*;
+    const dependency_value = dependency.value_ptr.*;
+
+    if (self.resolvePackageByName(allocator, package_name, dependency_name)) |resolved| {
+        // TODO: This is not really a reliable way to produce a unique hash. Adler32 only takes the first 16
+        // characters when generating a hash, so long package names collide. The quick fix here is to instead
+        // start with the semver number here which is less likely to collide with the package name right after it.
+        const unique_name = try std.mem.concat(allocator, u8, &[_][]const u8{ dependency_value, dependency_name });
+        const pkg_dep_hash = std.hash.Adler32.hash(unique_name);
+        const pkg_dep_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal, .id_extra = pkg_dep_hash });
+        defer pkg_dep_box.deinit();
+        const label_clicked = dvui.labelClick(@src(), "{s}", .{dependency_name}, .{}, .{ .expand = .horizontal });
+        dvui.label(@src(), "Required: {s}", .{dependency_value}, .{ .expand = .horizontal });
+        if (resolved.package.version) |version| {
+            dvui.label(@src(), "Actual: {s}", .{version}, .{ .expand = .horizontal });
+        }
+
+        if (resolved.package.license) |license| {
+            dvui.label(@src(), "License: {s}", .{license}, .{ .expand = .horizontal });
+        }
+
+        if (label_clicked) {
+            try self.selection_history.append(allocator, resolved.path);
+            self.selection_active = resolved.path;
+        }
+    } else |_| {
+        // If we can't resolve the package, then show an error message.
+        dvui.label(@src(), "ERR: \"{s}\" not found", .{dependency_name}, .{ .expand = .horizontal });
+    }
 }
 
 const ResolvedPackage = struct { path: []const u8, package: *const Package };
