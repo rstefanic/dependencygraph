@@ -100,7 +100,16 @@ pub const LockFile = struct {
         const version = version_json.string;
         const requires = requires_json.bool;
 
-        return .{ .allocator = allocator, .buffer = buffer, .name = name, .version = version, .lockfile_version = lockfile.get("lockfileVersion").?.integer, .requires = requires, .packages = packages };
+        // zig fmt: off
+        return .{
+            .allocator = allocator,
+            .buffer = buffer,
+            .name = name,
+            .version = version,
+            .lockfile_version = lockfile.get("lockfileVersion").?.integer,
+            .requires = requires,
+            .packages = packages
+        };
     }
 
     fn readLockfile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
