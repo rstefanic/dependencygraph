@@ -99,7 +99,7 @@ fn renderSearch(app: *App) !void {
 }
 
 fn doSearch(app: *App) void {
-    const MAX_SEARCH_RESULTS_LEN: u32 = 25;
+    const max_results_len: u32 = app.search_results.len;
     var i: u32 = 0;
 
     // Trim trailing whitespace and null bytes.
@@ -113,9 +113,9 @@ fn doSearch(app: *App) void {
 
     var it = app.lockfile.packages.iterator();
     while (it.next()) |pkg| {
-        if (i == MAX_SEARCH_RESULTS_LEN) break;
         const name = pkg.key_ptr.*;
         if (std.mem.indexOf(u8, name, term) != null) {
+            if (i == max_results_len) break;
             app.search_results[i] = name;
             i += 1;
         }
