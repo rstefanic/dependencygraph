@@ -91,7 +91,7 @@ pub fn appFrame() !dvui.App.Result {
 /// Draws a "Back" button that can be enabled. Returns true if it was clicked on this frame.
 fn drawBackButton(src: std.builtin.SourceLocation, enabled: bool) bool {
     var back_button: dvui.ButtonWidget = undefined;
-    back_button.init(src, .{}, .{ .gravity_x = 1, .gravity_y = 1, .tab_index = if (!enabled) null else 0 });
+    back_button.init(src, .{ .grayed = !enabled }, .{ .gravity_x = 1, .gravity_y = 1, .tab_index = if (!enabled) null else 0 });
     defer back_button.deinit();
 
     if (enabled) {
