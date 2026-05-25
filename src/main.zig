@@ -52,11 +52,18 @@ pub fn appFrame() !dvui.App.Result {
 
     // Render the search model if the user has opened it.
     try Search.frame(&app);
-
     {
-        const header_box = dvui.flexbox(@src(), .{}, .{ .expand = .horizontal });
+        const header_box = dvui.box(@src(), .{ .equal_space = true }, .{ .expand = .horizontal });
         defer header_box.deinit();
-        dvui.label(@src(), "press \"/\" to search", .{}, .{ .expand = .horizontal, .font = .theme(.mono) });
+
+        dvui.label(@src(), "press \"/\" to search", .{}, .{ .font = .theme(.mono), .gravity_x = 0, .gravity_y = 0.5 });
+
+        // Disable the button if there's no history.
+        const back_button_enabled = app.selection_history.items.len > 1;
+        const clicked = drawBackButton(@src(), back_button_enabled);
+        if (clicked) {
+            goBack(&app);
+        }
     }
 
     {
@@ -72,21 +79,6 @@ pub fn appFrame() !dvui.App.Result {
         dvui.label(@src(), "Dependency count: {d}", .{app.lockfile.packages.count()}, .{ .expand = .horizontal });
     }
 
-    {
-        const nav_box = dvui.flexbox(@src(), .{ .justify_content = .start }, .{ .expand = .horizontal });
-        defer nav_box.deinit();
-
-        // Back button if there's history
-        const button_enabled = app.selection_history.items.len > 1;
-        if (button_enabled) {
-            const clicked = dvui.button(@src(), "Back", .{}, .{});
-            if (clicked) {
-                _ = app.selection_history.pop(); // Remove last element
-                app.selection_active = app.selection_history.items[app.selection_history.items.len - 1];
-            }
-        }
-    }
-
     if (app.lockfile.packages.get(app.selection_active)) |pkg| {
         return app.packageTrees(pkg);
     } else {
@@ -94,4 +86,31 @@ pub fn appFrame() !dvui.App.Result {
     }
 
     return .ok;
+}
+
+/// Draws a "Back" button that can be enabled. Returns true if it was clicked on this frame.
+fn drawBackButton(src: std.builtin.SourceLocation, enabled: bool) bool {
+    var back_button: dvui.ButtonWidget = undefined;
+    back_button.init(src, .{}, .{ .gravity_x = 1, .gravity_y = 1, .tab_index = if (!enabled) null else 0 });
+    defer back_button.deinit();
+
+    if (enabled) {
+        back_button.processEvents();
+    }
+    back_button.drawBackground();
+    back_button.drawFocus();
+
+    // Draw box with label inside of it.
+    const opts = back_button.data().options.strip().override(.{ .gravity_y = 0.5 });
+    var bbox = dvui.box(@src(), .{ .dir = .horizontal }, opts);
+    defer bbox.deinit();
+    dvui.labelNoFmt(src, "Back", .{}, opts);
+
+    return back_button.clicked();
+}
+
+fn goBack(application: *App) void {
+    assert(application.selection_history.items.len > 1);
+    _ = application.selection_history.pop(); // Remove last element
+    application.selection_active = application.selection_history.items[application.selection_history.items.len - 1];
 }
