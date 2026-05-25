@@ -58,20 +58,13 @@ pub const LockFile = struct {
     packages: std.StringHashMap(Package),
 
     pub fn init(io: std.Io, allocator: std.mem.Allocator, path: []const u8) !LockFile {
+        // Parse the lockfile as JSON.
         const buffer = try readLockfile(allocator, io, path);
-
-        // Grab the base JSON object.
         const json = try std.json.parseFromSlice(std.json.Value, allocator, buffer, .{});
-        const lockfile = json.value.object;
+        assert(json.value == .object);
 
-        // Currently only support reading version 3 lockfiles.
-        const lockfile_version = lockfile.get("lockfileVersion") orelse {
-            return error.MissingLockfileVersion;
-        };
-        assert(lockfile_version == .integer);
-        if (lockfile_version.integer != 3) {
-            return error.LockfileVersionNotSupported;
-        }
+        const lockfile = json.value.object;
+        try validateLockfileVersion(lockfile);
 
         // This is our hash map of packages by name.
         var packages = std.StringHashMap(Package).init(allocator);
@@ -187,7 +180,7 @@ pub const LockFile = struct {
         const version = version_json.string;
         const requires = requires_json.bool;
 
-        return .{ .allocator = allocator, .name = name, .version = version, .lockfile_version = lockfile_version.integer, .requires = requires, .packages = packages };
+        return .{ .allocator = allocator, .name = name, .version = version, .lockfile_version = lockfile.get("lockfileVersion").?.integer, .requires = requires, .packages = packages };
     }
 
     fn readLockfile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
@@ -200,6 +193,17 @@ pub const LockFile = struct {
         const buffer = try allocator.alloc(u8, size);
         _ = try file.readPositionalAll(io, buffer, 0);
         return buffer;
+    }
+
+    fn validateLockfileVersion(lockfile_json: std.json.ObjectMap) !void {
+        // Currently only support reading version 3 lockfiles.
+        const lockfile_version = lockfile_json.get("lockfileVersion") orelse {
+            return error.MissingLockfileVersion;
+        };
+        assert(lockfile_version == .integer);
+        if (lockfile_version.integer != 3) {
+            return error.LockfileVersionNotSupported;
+        }
     }
 
     /// If the JSON object passed in exists, then a StringHashMap will be
