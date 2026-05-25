@@ -99,15 +99,20 @@ fn doSearch(app: *App) void {
     // Trim trailing whitespace and null bytes.
     const term = std.mem.trim(u8, &app.search_buf, " \t\r\n\x00");
 
+    // If there's no search term entered, set the search as "no results".
+    if (std.mem.eql(u8, term, "")) {
+        app.search_results_len = 0;
+        return;
+    }
+
     var it = app.lockfile.packages.iterator();
     while (it.next()) |pkg| {
+        if (i == MAX_SEARCH_RESULTS_LEN) break;
         const name = pkg.key_ptr.*;
         if (std.mem.indexOf(u8, name, term) != null) {
             app.search_results[i] = name;
             i += 1;
         }
-
-        if (i == MAX_SEARCH_RESULTS_LEN) break;
     }
 
     app.search_results_len = i;
