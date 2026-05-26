@@ -10,8 +10,8 @@ const Search = @import("search.zig");
 pub const dvui_app: dvui.App = .{
     .config = .{
         .options = .{
-            .size = .{ .w = 800.0, .h = 600.0 },
-            .min_size = .{ .w = 800.0, .h = 600.0 },
+            .size = .{ .w = 1020.0, .h = 768.0 },
+            .min_size = .{ .w = 1020.0, .h = 768.0 },
             .title = "Dependency Graph",
         },
     },

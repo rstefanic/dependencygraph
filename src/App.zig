@@ -42,58 +42,59 @@ pub fn packageTrees(self: *App, root: Package) !dvui.App.Result {
         pub fn name(packageType: PackageType) []const u8 {
             return switch (packageType) {
                 .dependencies => "Dependencies",
-                .devDependencies => "Dev Dependencies",
+                .devDependencies => "Developer Dependencies",
                 .peerDependencies => "Peer Dependencies",
                 .optionalDependencies => "Optional Dependencies",
             };
         }
+
+        pub fn dependenciesByType(pt: PackageType, package: Package) ?std.StringHashMap([]const u8) {
+            return switch (pt) {
+                .dependencies => package.dependencies,
+                .devDependencies => package.dev_dependencies,
+                .peerDependencies => package.peer_dependencies,
+                .optionalDependencies => package.optional_dependencies,
+            };
+        }
     };
 
+    // Add a tab for each package type that we have (e.g. dependencies, dev dependencies, etc.)
     const tabs_box = dvui.box(@src(), .{}, .{ .expand = .both });
     defer tabs_box.deinit();
     {
         var tabs = dvui.tabs(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .padding = dvui.Rect{ .x = 10, .y = 10, .w = 10, .h = 10 } });
         defer tabs.deinit();
 
+        const allocator = self.arena_allocator.?.allocator();
         for (0..PackageType.num_tabs) |i| {
-            const tab: PackageType = @enumFromInt(i);
+            const package_type_tab: PackageType = @enumFromInt(i);
 
-            const selected = tabs.addTabLabel(local.isSelected(tab), local.name(tab), .{});
+            // Check the dependencies to get a count of how many we have byt his type.
+            var dependencies_count: u32 = 0;
+            const dependencies = local.dependenciesByType(package_type_tab, root);
+            if (dependencies) |deps| {
+                assert(deps.count() < 999);
+                dependencies_count = deps.count();
+            }
+
+            // Convert the count into a string.
+            var tmp: [3]u8 = undefined;
+            const count = try std.fmt.bufPrint(&tmp, "{}", .{dependencies_count});
+
+            // Add the label to this tab and handle click selected.
+            const tab_label = try std.mem.concat(allocator, u8, &[_][]const u8{ local.name(package_type_tab), " (", count, ")" });
+            const selected = tabs.addTabLabel(local.isSelected(package_type_tab), tab_label, .{});
             if (selected) {
-                local.selected = tab;
+                local.selected = package_type_tab;
             }
         }
     }
 
-    switch (local.selected) {
-        .dependencies => {
-            if (root.dependencies) |packages| {
-                return self.packageDependencies(packages);
-            } else {
-                dvui.label(@src(), "This package has no Dependencies.", .{}, .{});
-            }
-        },
-        .devDependencies => {
-            if (root.dev_dependencies) |packages| {
-                return self.packageDependencies(packages);
-            } else {
-                dvui.label(@src(), "This package has no Developer Dependencies.", .{}, .{});
-            }
-        },
-        .peerDependencies => {
-            if (root.peer_dependencies) |packages| {
-                return self.packageDependencies(packages);
-            } else {
-                dvui.label(@src(), "This package has no Peer Dependencies.", .{}, .{});
-            }
-        },
-        .optionalDependencies => {
-            if (root.optional_dependencies) |packages| {
-                return self.packageDependencies(packages);
-            } else {
-                dvui.label(@src(), "This package has no Optional Dependencies.", .{}, .{});
-            }
-        },
+    const selected_packages = local.dependenciesByType(local.selected, root);
+    if (selected_packages) |packages| {
+        return self.packageDependencies(packages);
+    } else {
+        dvui.label(@src(), "This package has no {s}.", .{local.name(local.selected)}, .{});
     }
 
     return .ok;
