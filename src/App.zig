@@ -102,11 +102,16 @@ pub fn packageTrees(self: *App, root: Package) !dvui.App.Result {
 pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) !dvui.App.Result {
     var packages_it = packages.iterator();
     var i: u64 = 0;
+    const allocator = self.arena_allocator.?.allocator();
+
     while (packages_it.next()) |pkg| {
         const package_name = pkg.key_ptr.*;
+        const resolved = try self.resolvePackageByName(allocator, package_name, null);
+        const version = if (resolved.package.version) |version| version else "N/A";
 
         // Set this as the selected package if clicked.
-        const clicked = dvui.expander(@src(), package_name, .{}, .{ .expand = .horizontal, .id_extra = i });
+        const package_label = try std.mem.concat(allocator, u8, &[_][]const u8{ resolved.path, " (", version, ")" });
+        const clicked = dvui.expander(@src(), package_label, .{}, .{ .expand = .horizontal, .id_extra = i });
         if (clicked) {
             // Show a box with this package's dependencies in it.
             const hash = std.hash.Adler32.hash(package_name);
@@ -114,7 +119,6 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
             defer box.deinit();
 
             // Find the package and list its dependencies.
-            const allocator = self.arena_allocator.?.allocator();
             if (self.lockfile.packages.get(package_name)) |node_modules_package| {
                 if (node_modules_package.dependencies) |node_modules_dependencies| {
                     var node_module_dependencies_it = node_modules_dependencies.iterator();
@@ -133,11 +137,11 @@ pub fn packageDependencies(self: *App, packages: std.StringHashMap([]const u8)) 
     return .ok;
 }
 
-fn drawPackageDependencyLabels(self: *App, allocator: std.mem.Allocator, package_name: []const u8, dependency: std.StringHashMap([]const u8).Entry) !void {
+fn drawPackageDependencyLabels(self: *App, allocator: std.mem.Allocator, parent_package_name: []const u8, dependency: std.StringHashMap([]const u8).Entry) !void {
     const dependency_name = dependency.key_ptr.*;
     const dependency_value = dependency.value_ptr.*;
 
-    if (self.resolvePackageByName(allocator, package_name, dependency_name)) |resolved| {
+    if (self.resolvePackageByName(allocator, dependency_name, parent_package_name)) |resolved| {
         // TODO: This is not really a reliable way to produce a unique hash. Adler32 only takes the first 16
         // characters when generating a hash, so long package names collide. The quick fix here is to instead
         // start with the semver number here which is less likely to collide with the package name right after it.
@@ -168,18 +172,20 @@ fn drawPackageDependencyLabels(self: *App, allocator: std.mem.Allocator, package
 const ResolvedPackage = struct { path: []const u8, package: *const Package };
 
 // Resolve the requested package based on the dependency and package name.
-fn resolvePackageByName(self: *App, allocator: std.mem.Allocator, package_name: []const u8, dependency_of: []const u8) !ResolvedPackage {
+fn resolvePackageByName(self: *App, allocator: std.mem.Allocator, dependency_package_name: []const u8, parent_package_name: ?[]const u8) !ResolvedPackage {
     // First check to see if this package exists nested inthis package's node_modules folder. This
     // could mean that there's another version that's conflicting at the package level and this
     // package has a different version of its dependency.
-    const nested_package_path = try std.mem.concat(allocator, u8, &[_][]const u8{ package_name, "/node_modules/", dependency_of });
-    if (self.lockfile.packages.getPtr(nested_package_path)) |resolved_pkg| {
-        return .{ .path = nested_package_path, .package = resolved_pkg };
+    if (parent_package_name) |pp_name| {
+        const nested_package_path = try std.mem.concat(allocator, u8, &[_][]const u8{ pp_name, "/node_modules/", dependency_package_name });
+        if (self.lockfile.packages.getPtr(nested_package_path)) |resolved_pkg| {
+            return .{ .path = nested_package_path, .package = resolved_pkg };
+        }
     }
 
     // Check the top node_modules folder to see if the dependency is shared.
-    if (self.lockfile.packages.getPtr(dependency_of)) |resolved_pkg| {
-        return .{ .path = dependency_of, .package = resolved_pkg };
+    if (self.lockfile.packages.getPtr(dependency_package_name)) |resolved_pkg| {
+        return .{ .path = dependency_package_name, .package = resolved_pkg };
     }
 
     return error.NoPackageFound;
