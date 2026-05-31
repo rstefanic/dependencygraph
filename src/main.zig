@@ -34,6 +34,7 @@ pub fn appInit(win: *dvui.Window) !void {
     arena_allocator = .init(std.heap.page_allocator);
     const allocator = arena_allocator.allocator();
     app.lockfile = try dependencygraph.LockFile.init(io, allocator, "package-lock.json");
+    assert(app.lockfile.verify());
     app.arena_allocator = arena_allocator;
     try app.selection_history.append(allocator, "root");
 }

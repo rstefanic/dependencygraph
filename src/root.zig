@@ -284,4 +284,77 @@ pub const LockFile = struct {
 
         return .local;
     }
+
+    pub fn verify(self: *LockFile) bool {
+        var it = self.packages.iterator();
+
+        while (it.next()) |package| {
+            const package_name = package.key_ptr;
+            const value = package.value_ptr;
+
+            if (value.dependencies) |dependencies| {
+                if (!self.verifyDependencies(package_name, dependencies)) {
+                    return false;
+                }
+            }
+            if (value.dev_dependencies) |dev_dependencies| {
+                if (!self.verifyDependencies(package_name, dev_dependencies)) {
+                    return false;
+                }
+            }
+
+            // TODO: Handle peer dependency check based on `peerDependenciesMeta` where it can be optional.
+        }
+
+        return true;
+    }
+    
+    fn verifyDependencies(self: *LockFile, parent_package_name: *[]const u8, dependencies: std.StringHashMap([]const u8)) bool {
+        var dependencies_it = dependencies.iterator();
+        while (dependencies_it.next()) |dependency| {
+            const dependency_name = dependency.key_ptr;
+            _ = self.resolvePackageByName(self.allocator, dependency_name.*, parent_package_name.*) catch |err| switch (err) {
+                error.NoPackageFound => {
+                    std.debug.print("Missing \"{s}\" for \"{s}\"\n", .{dependency_name.*, parent_package_name.*});
+                    return false;
+                },
+                else => {
+                    std.debug.print("Unexpected error: {}\n", .{err});
+                    return false;
+                }
+            }; 
+        }
+
+        return true;
+    }
+
+    const ResolvedPackage = struct { path: []const u8, package: *const Package };
+
+    // TODO: Refactor another version of this that doesn't have the error. This
+    // function is used here to verify that the Lockfile is valid, but it's also
+    // used in the main program to show package names and their dependencies to
+    // the user. We should have a version for the frontend that avoids throwing
+    // the `error.NoPackageFound` error since if it's valid, then that error
+    // can never happen at that point during runtime.
+    //
+    // Resolve the requested package based on the dependency and package name.
+    pub fn resolvePackageByName(self: *LockFile, allocator: std.mem.Allocator, dependency_package_name: []const u8, parent_package_name: ?[]const u8) !ResolvedPackage {
+        // First check to see if this package exists nested inthis package's node_modules folder. This
+        // could mean that there's another version that's conflicting at the package level and this
+        // package has a different version of its dependency.
+        if (parent_package_name) |pp_name| {
+            const nested_package_path = try std.mem.concat(allocator, u8, &[_][]const u8{ pp_name, "/node_modules/", dependency_package_name });
+            if (self.packages.getPtr(nested_package_path)) |resolved_pkg| {
+                return .{ .path = nested_package_path, .package = resolved_pkg };
+            }
+        }
+
+        // Check the top node_modules folder to see if the dependency is shared.
+        if (self.packages.getPtr(dependency_package_name)) |resolved_pkg| {
+            return .{ .path = dependency_package_name, .package = resolved_pkg };
+        }
+
+        return error.NoPackageFound;
+    }
 };
+
